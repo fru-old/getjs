@@ -1,0 +1,3 @@
+exports.warn = function(message){
+	
+};
