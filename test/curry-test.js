@@ -23,4 +23,3 @@ QUnit.test( 'Excessive argmunents', function( assert ) {
 QUnit.test( 'Direct call', function( assert ) {
 	assert.equal( twiceadd(2, 3) , 2+6);
 });
-

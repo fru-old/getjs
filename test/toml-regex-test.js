@@ -49,10 +49,14 @@ QUnit.test( 'Parse regexp difficult', function( assert ) {
 	assert.equal( full.replace(uncomment,'$1') , code);
 });
 
-
 QUnit.test( 'Parse regexp difficult', function( assert ) {
 	var code    = '/co\"#de/';
 	var comment = 'comment';
 	var full = code + (comment ? '#'+comment : '');
 	assert.equal( full.replace(uncomment,'$1') , code);
+});
+
+QUnit.test( 'Regression Test Examples', function( assert ) {
+	var full = '"" #';
+	assert.equal( full.replace(uncomment,'$1') , '"" ');
 });

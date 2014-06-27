@@ -6,6 +6,7 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-contrib-watch');
 	grunt.loadNpmTasks('grunt-qunit-examples');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
+	grunt.loadNpmTasks('grunt-jsdoc');
 
 	var pkg = grunt.file.readJSON('package.json');
 
@@ -50,7 +51,7 @@ module.exports = function(grunt) {
 					instrumentedFiles: '/temp',
 					disposeCollector: true,
 					src: ['dist/run.js'],
-					htmlReport: 'report'
+					htmlReport: 'report/coverage'
 				},
 				addJSDocExamples: 'test/test.html'
 			},
@@ -79,9 +80,18 @@ module.exports = function(grunt) {
 				src: 'dist/run.js',
 				dest: 'dist/run-'+pkg.version+'.min.js'
     		}	
-  		}
+  		},
+
+  		jsdoc : {
+	        dist : {
+	            src: ['src/*.js'], 
+	            options: {
+	                destination: 'report/jsdocs'
+	            }
+	        }
+	    }
 	});
 	
-	grunt.registerTask('build', ['concat', 'jshint', 'qunit', 'uglify', 'size']);
-	grunt.registerTask('default', ['build', 'watch']);
+	grunt.registerTask('build', ['concat', 'jshint', 'qunit']);
+	grunt.registerTask('default', ['build', 'uglify', 'size', 'jsdoc', 'watch']);
 };

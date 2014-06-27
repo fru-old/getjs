@@ -1,131 +1,31 @@
-;(function(run, global, undefined){ 
- "use strict"; 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: toml.js</title>
+    
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
 
-var modules   = {};
-var factories = {};
-var original  = {};
+<body>
 
-/**
- * This converts relative paths into absolute module names
- */
-function normalize(id, base){
-	
-	// Some code golf to get the number of "directories" of the id back.
-	var dots = /(\.?\.\/?)*/.exec(id)[0];
-	var dirCount = Math.floor(dots.replace(/\//g, '').length/1.9 + 0.99);
+<div id="main">
+    
+    <h1 class="page-title">Source: toml.js</h1>
+    
+    
 
-	if(dirCount){
-		// Reduce base by found number of "directories"
-		var reduced = base.split('/');
-		reduced = reduced.slice(0, reduced.length - dirCount);
-		reduced = reduced.join('/');
-		
-		if(reduced){
-			id = reduced + '/' + id.slice(dots.length);
-		}
-	}
-	return id.replace(/\/$/, '');
-}
 
-/**
- * @Public
- */
-var define = run.define = function(id, factory) { 
-	var newid = id.replace(/\/index$/, '');
-
-	// store mapped id to resolve path relative to old path
-	if(newid !== id) original[newid] = id;
-
-	// store factory under both new and old ids
-	factories[id] = factories[newid] = factory;
-};
-
-/**
- * @Public
- */
-var require = run.require = function(id) {
-	if (!modules[id]){		
-		var message = "Could not load module: '"+id+"'";
-		if(!factories[id])throw new Error(message);
-
-		// creates custome require function
-		var customeRequire = function(newid){
-			return require(normalize(newid, original[id] || id));
-		};
-		
-		// This stops infinite recursion with circular dependencies
-		var module = {exports: modules[id] = {}};
-
-		// Build module
-		factories[id](customeRequire, module.exports, module);
-		modules[id] = module.exports;
-	}
-	
-	return modules[id];
-};
-;define("src/curry", function(require, exports, module){
-
-// Identify the underscore variable
-var _curry = (global._ || (global._ = {})).runid = {
-  equals: function(target){
-    return target && this === target.runid;
-  }
-};
-
-var curry = module.exports = function(func, enableUncurry){
-  
-  var uncurry = false;
-
-  var curryable = function(){
-    var args = Array.prototype.slice.call(arguments, 0);
-    var self = this;
-
-    var posCurry = [], last = false;
-
-    if(!uncurry){
-      for(var i = 0; i < args.length; i++){
-        if(_curry.equals(args[i])){
-          posCurry.push(i);
-        }
-      }
-      last = _curry.equals(args[args.length-1]);
-    }
-
-    if(posCurry.length === 0 || uncurry){
-      return func.apply(self, args);
-    }
-
-    return curry(function(){
-      var cargs = Array.prototype.slice.call(arguments, 0);
-
-      var expected = posCurry.length - (last ? 1 : 0);
-      if(cargs.length < expected){
-        throw new Error("Expect at least "+expected+" arguments.");
-      }
-
-      if(last)args.pop();
-      for(var i = 0; i < cargs.length; i++){
-        if(i < expected)args[posCurry[i]] = cargs[i];
-        else args.push(cargs[i]);
-      }
-
-      return func.apply(self, args);
-    }, true);
-  };
-
-  curryable.uncurry = function(){
-    if(!enableUncurry)throw "Uncurry disabled.";
-    uncurry = true;
-  };
-
-  return curryable;  
-};
-
-});
-;define("src/emitter", function(require, exports, module){
-});
-;define("src/index", function(require, exports, module){var curry = require('./curry');});
-;define("src/toml", function(require, exports, module){
+    
+    <section>
+        <article>
+            <pre class="prettyprint source"><code>
 
 /**
  * Filters comments from a single line of toml 
@@ -182,7 +82,7 @@ exports.parse = function (code, walker){
 	// Split into lines and normalize whitespace
 	code = code.replace(/\r/g, '').split('\n');
 
-	for(var i = 0; i < code.length; i++){
+	for(var i = 0; i &lt; code.length; i++){
 
 		if(!code[i].trim())continue;
 
@@ -284,7 +184,7 @@ function sendTable(indent, isArray, name, attr, walker){
 
 	while((indentions[indentions.length-1]||{}).indent >= indent){
 		var count = indentions.pop().level;
-		for(var i = 0; i < count; i++){
+		for(var i = 0; i &lt; count; i++){
 			indentions.pop();
 			walker.pop();
 		}
@@ -306,7 +206,7 @@ function sendTable(indent, isArray, name, attr, walker){
 	});
 
 	var keys = '';
-	for(var k = 0; k < name.length; k++){
+	for(var k = 0; k &lt; name.length; k++){
 		var key = walker.parseKey(name[k]);
 		keys += '.'+key.key;
 		var duplicate = !!childreen[keys];
@@ -321,10 +221,26 @@ function sendTable(indent, isArray, name, attr, walker){
 	}*/
 }
 
-});
-;define("src/traverse", function(require, exports, module){});
-;define("src/utils", function(require, exports, module){exports.warn = function(message){
-	
-};});
- run.require("src"); 
- }((typeof exports === "undefined" ? window.run={} : exports),Function("return this")()));
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Index</a></h2><h3>Global</h3><ul><li><a href="global.html#canBeLine">canBeLine</a></li><li><a href="global.html#define">define</a></li><li><a href="global.html#isTable">isTable</a></li><li><a href="global.html#normalize">normalize</a></li><li><a href="global.html#require">require</a></li><li><a href="global.html#sendTable">sendTable</a></li><li><a href="global.html#uncomment">uncomment</a></li></ul>
+</nav>
+
+<br clear="both">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.2</a> on Sat Jun 28 2014 00:30:28 GMT+0200 (MESZ)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
