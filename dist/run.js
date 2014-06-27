@@ -68,16 +68,16 @@ var require = run.require = function(id) {
 // Identify the underscore variable
 var _curry = (global._ || (global._ = {})).runid = {
   equals: function(target){
-    return target && this === target.id;
+    return target && this === target.runid;
   }
 };
 
-function curry(func, enableUncurry){
+var curry = module.exports = function(func, enableUncurry){
   
   var uncurry = false;
 
   var curryable = function(){
-    var args = arguments;
+    var args = Array.prototype.slice.call(arguments, 0);
     var self = this;
 
     var posCurry = [], last = false;
@@ -92,11 +92,11 @@ function curry(func, enableUncurry){
     }
 
     if(posCurry.length === 0 || uncurry){
-      func.apply(self, args);
+      return func.apply(self, args);
     }
 
     return curry(function(){
-      var cargs = arguments;
+      var cargs = Array.prototype.slice.call(arguments, 0);
 
       var expected = posCurry.length - (last ? 1 : 0);
       if(cargs.length < expected){
@@ -109,7 +109,7 @@ function curry(func, enableUncurry){
         else args.push(cargs[i]);
       }
 
-      func.apply(self, args);
+      return func.apply(self, args);
     }, true);
   };
 
@@ -119,10 +119,63 @@ function curry(func, enableUncurry){
   };
 
   return curryable;  
-}});
+};
+
+});
 ;define("src/emitter", function(require, exports, module){
 });
 ;define("src/index", function(require, exports, module){var curry = require('./curry');});
+;define("src/toml", function(require, exports, module){
+
+/**
+ * Filters comments from a sinle line of toml 
+ * @expose uncomment
+ */
+var uncomment = (function(){
+
+	var comment = '(?:#.*)?';
+	var string  = '("([^\\\\"]|(\\\\.))*("|$))';
+	var single  = string.replace(/\"/g, '\'');
+	var regexp  = string.replace(/\"/g, '/');
+	var other   = '([^"/\'#]*)';
+	var isline  = [string, single, regexp, other].join('|');
+	
+	return new RegExp('^('+isline+')'+comment+'$');
+}());
+
+var isTable   = /^(\s*)\[(\[?)([^\[\]]*)\]\]?\s*$/;
+var canBeLine = /^\s*([^ \t\[\]]*)\s*=(.*)$/;
+
+
+/**
+ * The walker must at least support these methods:
+ * - parseKey() -> {id: , attr: {}}
+ * - push(key, attr, leaf, duplicate)
+ * - pop()
+ * - parseExpression() -> {value: } or. false
+ */
+function parse(code, walker){
+
+	// Split into lines and normalize whitespace
+	code = code.split('\n').replace(/\r/g, '');
+
+	
+	for(var i = 0; i < code.length; i++){
+		var line = code[i];
+		// Remove all comments
+		line = line.replace(uncomment,'$1');
+
+		if(isTable.match(line)){
+			//var table = 
+		}
+
+
+
+	}
+
+	// Parse header []
+
+}});
 ;define("src/traverse", function(require, exports, module){});
 ;define("src/utils", function(require, exports, module){exports.warn = function(message){
 	

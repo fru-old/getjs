@@ -3,16 +3,16 @@
 // Identify the underscore variable
 var _curry = (global._ || (global._ = {})).runid = {
   equals: function(target){
-    return target && this === target.id;
+    return target && this === target.runid;
   }
 };
 
-function curry(func, enableUncurry){
+var curry = module.exports = function(func, enableUncurry){
   
   var uncurry = false;
 
   var curryable = function(){
-    var args = arguments;
+    var args = Array.prototype.slice.call(arguments, 0);
     var self = this;
 
     var posCurry = [], last = false;
@@ -27,11 +27,11 @@ function curry(func, enableUncurry){
     }
 
     if(posCurry.length === 0 || uncurry){
-      func.apply(self, args);
+      return func.apply(self, args);
     }
 
     return curry(function(){
-      var cargs = arguments;
+      var cargs = Array.prototype.slice.call(arguments, 0);
 
       var expected = posCurry.length - (last ? 1 : 0);
       if(cargs.length < expected){
@@ -44,7 +44,7 @@ function curry(func, enableUncurry){
         else args.push(cargs[i]);
       }
 
-      func.apply(self, args);
+      return func.apply(self, args);
     }, true);
   };
 
@@ -54,4 +54,5 @@ function curry(func, enableUncurry){
   };
 
   return curryable;  
-}
+};
+
