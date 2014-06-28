@@ -28,10 +28,15 @@ var walker = {
 	pop: function(){
 		console.log('pop');
 	},
-	push: function(key, attr, leaf, duplicate){
+	push: function(key, attr, leaf, duplicate, double){
 		leaf = leaf ? ' leaf' : ''; 
 		duplicate = duplicate ? ' duplicate' : '';
-		console.log('push '+key.key+leaf+duplicate);
+		double = double ? ' double' : '';
+		console.log('push '+key.key+leaf+duplicate+double);
+		if(leaf)
+		for(var j in attr){
+			console.log('    ' + j + ' = ' + attr[j]);
+		}
 	}
 };
 
@@ -40,11 +45,12 @@ QUnit.test( 'Parse simple', function( assert ) {
 	var result = toml.parse(' 	\n\
 	 	[.test.test.]			\n\
 	 	at1 = {"d": ""}	      	\n\
-	[test]					   	\n\
+	[[test]]					\n\
 	 	[test.test]				\n\
 	 	at1 = {               	\n\
 	 		"d": ""           	\n\
 	 	}	      			  	\n\
+	 	at2 = "xyz"				\n\
 	', walker);
 
 	assert.equal( result , "done");

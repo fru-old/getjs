@@ -41,16 +41,17 @@ var isTable   = /^(\s*)\[(\[?)([^\[\]]*)\]\]?\s*$/;
  */
 var canBeLine = /^\s*([^ \t\[\]]*)\s*=(.*)$/;
 
-var escapeDollar = '\\uEscapedDollarRunJS';
+// Random string to escape dollar (other types of escaping may fail)
+var dollar = 'DollarWWbpyfvjYHaPCXNRW2YTjqj4AvxrC4mZ9BBHFJZ9VNyp';
+
 function unescape(string){
-	return string.replace(escapeDollar, '$$');
+	return string.replace(dollar, '$$');
 }
 
 exports.parse = function (code, walker){
 
 	// We are going to use replace - so escape dollar	
-	code = code.replace(/\$/g, escapeDollar);
-	
+	code = code.replace(/\$/g, dollar);
 
 	// Split into lines and normalize whitespace
 	code = code.replace(/\r/g, '').split('\n');
@@ -124,7 +125,7 @@ function parseLine(table, line, i, current, end, walker){
 				sendTable(indent.length, isDouble, name, lastAttrs,  walker);
 			}
 			lastTable = table;
-
+			lastAttrs = {};
 		}else if(line){
 			if(!lastTable){
 				walker.error('Toml must start with table.', i);
@@ -184,13 +185,7 @@ function sendTable(indent, isArray, name, attr, walker){
 		keys += '.'+key.key;
 		var duplicate = !!childreen[keys];
 		childreen[keys] = true;
-		walker.push(key, attr, k === name.length - 1, duplicate);
+		walker.push(key, attr, k === name.length - 1, duplicate, isArray);
 	}
-
-	/*console.log(indent);
-	console.log(name);
-	for(var j in attr){
-		console.log(j + ' = ' + attr[j]);
-	}*/
 }
 
