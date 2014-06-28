@@ -2,6 +2,11 @@ var toml = run.require('src/toml');
 
 var walker = {
 	parseExpression: function(value){
+
+		if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/.test(value.trim())){
+			return {value: new Date(value.trim())};
+		}
+
 		try{
 			return {value: JSON.parse(value)};
 		}catch(e){
@@ -9,6 +14,12 @@ var walker = {
 		}
 	},
 	error: function(message, i, value){
+		if(message === 'Expression invalid'){
+			if(value && /,[\s\n]*(\}|\])/.test(value)){
+				message += ' (Trailing commas not allowed)';
+			}
+		}
+
 		if(arguments.length < 3){
 			value = '';
 		}
@@ -26,32 +37,30 @@ var walker = {
 		return "done"
 	},
 	pop: function(){
-		console.log('pop');
+		//console.log('pop');
+	},
+	root: function(attr){
+		//console.log("Root arguments:");
+		for(var j in attr){
+			//console.log('    ' + j + ' = ' + attr[j]);
+		}
 	},
 	push: function(key, attr, leaf, duplicate, double){
 		leaf = leaf ? ' leaf' : ''; 
 		duplicate = duplicate ? ' duplicate' : '';
 		double = double ? ' double' : '';
-		console.log('push '+key.key+leaf+duplicate+double);
+		//console.log('push '+key.key+leaf+duplicate+double);
 		if(leaf)
 		for(var j in attr){
-			console.log('    ' + j + ' = ' + attr[j]);
+			//console.log('    ' + j + ' = ' + attr[j]);
 		}
 	}
 };
 
 
 QUnit.test( 'Parse simple', function( assert ) {
-	var result = toml.parse(' 	\n\
-	 	[.test.test.]			\n\
-	 	at1 = {"d": ""}	      	\n\
-	[[test]]					\n\
-	 	[test.test]				\n\
-	 	at1 = {               	\n\
-	 		"d": ""           	\n\
-	 	}	      			  	\n\
-	 	at2 = "xyz"				\n\
-	', walker);
+	var input = document.getElementById('example').innerHTML;
+	var result = toml.parse(input, walker);
 
 	assert.equal( result , "done");
 });

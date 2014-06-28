@@ -29,7 +29,7 @@ var uncomment = (function(){
  * isTable.exec(' [[table]]')[2]   // '['
  * isTable.exec(' [[table]]')[3]   // 'table'
  */
-var isTable   = /^(\s*)\[(\[?)([^\[\]]*)\]\]?\s*$/;
+var isTable   = /^(\s*)\[(\[?)([^\[\]]*)\]\]?\s*(?:#.*)?$/;
 
 /**
  * Attribute lines allways start with a name followed by an equals.
@@ -58,15 +58,16 @@ exports.parse = function (code, walker){
 
 	for(var i = 0; i < code.length; i++){
 
-		if(!code[i].trim())continue;
-
-		// Remove all comments
-		code[i] = code[i].replace(uncomment,'$1');
-
-		// Extract all information
 		var table = isTable.exec(code[i]);
-		var line  = canBeLine.exec(code[i]);
+		if(!table){
+			// Remove all comments table does this 
+			code[i] = code[i].replace(uncomment,'$1');
+		}
 		
+		code[i] = code[i].trim();
+		if(!code[i])continue;
+		
+		var line  = canBeLine.exec(code[i]);
 		parseLine(table, line, i, code[i], false, walker);
 	}
 
@@ -82,7 +83,7 @@ var lastTable = null;
 // Current attribute name
 var lastAttr  = null;
 // Current attributes store
-var lastAttrs = {};
+var lastAttrs = null;
 
 function parseLine(table, line, i, current, end, walker){
 	var valid = walker.parseExpression(unescape(lastExpr));
@@ -97,6 +98,7 @@ function parseLine(table, line, i, current, end, walker){
 			lastExpr = '';
 			
 		}else if((table || end || line) && valid){
+			if(!lastAttrs)lastAttrs = {};
 			lastAttrs[lastAttr] = valid.value;
 			lastAttr = null;
 			lastExpr = '';
@@ -123,17 +125,17 @@ function parseLine(table, line, i, current, end, walker){
  				}
 
 				sendTable(indent.length, isDouble, name, lastAttrs,  walker);
+			}else if(lastAttrs){
+				walker.root(lastAttrs);
 			}
 			lastTable = table;
 			lastAttrs = {};
 		}else if(line){
-			if(!lastTable){
-				walker.error('Toml must start with table.', i);
-			}
+
 			lastAttr = unescape(line[1]);
 			lastExpr = line[2]; 
-
 		}else{
+
 			walker.error('Can not parse', i, current);
 		}
 	}
@@ -159,7 +161,6 @@ function sendTable(indent, isArray, name, attr, walker){
 	while((indentions[indentions.length-1]||{}).indent >= indent){
 		var count = indentions.pop().level;
 		for(var i = 0; i < count; i++){
-			indentions.pop();
 			walker.pop();
 		}
 	}
