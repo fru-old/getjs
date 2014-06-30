@@ -1,5 +1,5 @@
-var curry = run.require('src/curry');
+var traverse = run.require('src/traverse');
 
-QUnit.test( 'Underscore has runid.', function( assert ) {
+QUnit.test( 'Basic structures.', function( assert ) {
 	assert.ok( !!_.runid );
 });

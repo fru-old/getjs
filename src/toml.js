@@ -132,7 +132,7 @@ function parseLine(table, line, i, current, end, walker){
 			lastAttrs = {};
 		}else if(line){
 
-			lastAttr = unescape(line[1]);
+			lastAttr = unescape(line[1]).trim();
 			lastExpr = line[2]; 
 		}else{
 
