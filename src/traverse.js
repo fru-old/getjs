@@ -148,8 +148,9 @@ Childreen.prototype.finite = function(done){
 // A basic operation either changes atributes, properties or the array of 
 // childreen of a node.
 // 
+// Basic operations are bundled to form an operation with a distinct id.
+// 
 // operation := {
-//     toBeRun: boolean, // still has to be matched and run against this
 //     applied: number,  // counts the number of childs this was propagated to
 //     id: number,       // the id of this operation
 //     ops: [basic],     // basic operations that will be executed
@@ -163,8 +164,8 @@ Childreen.prototype.finite = function(done){
 // }
 // 
 // Enabled can also be a function that would have access to the current nodes 
-// attributes, state and context information. When falsey the operation will 
-// not run.
+// attributes, state and context information. When falsey the basic operation 
+// will not run.
 
 /**
  * Global id generator to return ascending ids. 
@@ -186,7 +187,7 @@ function Node(){
 	this.text = null;
 
 	this.childreen = new Childreen();
-	this.pending   = []; // Array of pending operations
+	this.pending   = []; // Array of pending operations to be applied on childreen
 	this.previous  = {}; // Operations that are pending or true when allready run
 	this.minimum   = -1; // Pending can't have an id less then this
 
@@ -198,6 +199,12 @@ Node.prototype.transform = function(){
 
 	// detach, append, insert, dowrap, unwrap, maping, seting, hassub
 	// Traverse over subtree and produce result - hassub
+
+	// operations that "deal" with a child like "detach child at index n"
+	// means that every previous operation like "wrap child at index n" has 
+	// to be executed or added to pending operation on child n first. 
+
+	// This function can call resolve for this and every child of this.
 };
 
 /**
@@ -210,14 +217,19 @@ Node.prototype.propagate = function(index, maximum){
 	// xyz.** -> detach does not detach all descendents of xyz only the childreen
 
 	// But an operation can specifically attach new operations to this.
-	// They have toBeRun=false and are then appliable to the childreen.
+	// They are not run on this node but pending to be appliable to the childreen.
 };
+
+
+
+
 
 
 ///////// TODO descibe contextual information that will be passed to opertations
 // No bytecode stack but contextual information 
 // Also contains meta information
 // And Match state
+// And link to .parent
 
 /**
  *
