@@ -15,6 +15,57 @@
 // and the inner arrays are AND expressions.
 
 function DNF(truthy, falsey){
+	this.terms = [{
+		truthy: truthy || [],
+		falsey: falsey || []
+	}];
+}
+
+DNF.normalize = function(target){
+	if(target instanceof DNF)return target;
+	if(!target.dnf){
+		target.dnf = new DNF([target]);
+	}
+	return target.dnf;
+};
+
+DNF.prototype.or = function(target){
+	var self  = this || {};
+	var added = DNF.normalize(target).terms;
+	var dnf   = DNF.normalize(self);
+	dnf.terms = dnf.terms.concat(added);
+	return self;
+};
+
+DNF.prototype.resolve = function(resolver){
+	var result = false;
+	for(var i = 0; i < this.terms.length; i++){
+		var termResult = true;
+		var t = this.terms[i].truthy;
+		var f = this.terms[i].falsey;
+		for(var i = 0; i < t.length; i++){
+			termResult &= resolver(t[i]);
+		}
+		for(var i = 0; i < f.length; i++){
+			termResult &= !resolver(f[i]);
+		}
+		if(termResult)result = true;
+	}
+	return result;
+}
+
+function DNFcomposable(type){
+	type.make = function(dnf){
+		return new DNF(dnf.truthy, dnf.falsey);
+	};
+	type.or   = DNF.prototype.or;
+	type.init = function(){
+		this.or = DNF.prototype.or;
+	};
+}
+
+
+function DNF(truthy, falsey){
 
 	var terms = arguments[2] || [{
 		truthy: truthy || [],
