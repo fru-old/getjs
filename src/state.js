@@ -1,7 +1,7 @@
 // ** This file describes the state machine that underlies runjs selectors. They
 // are specified in a declarative manner. **
 
-// Disjunctive normal form (DNF) is a normaized format that any boolean logic
+// Disjunctive normal form (DNF) is a normalized format that any boolean logic
 // formular can be transformed to. This may incur in some cases an exponential
 // growth of the resulting DNF formular. Runjs uses dnf because it allows bool 
 // expressions to be more easily reasoned about.
@@ -37,6 +37,10 @@ DNF.prototype.or = function(target){
 	return self;
 };
 
+/**
+ * Resolve if a dnf expression is true or false
+ * @param {function} resolver - resolve a single expression to true or false
+ */
 DNF.prototype.resolve = function(resolver){
 	var result = false;
 	for(var i = 0; i < this.terms.length; i++){
@@ -52,61 +56,23 @@ DNF.prototype.resolve = function(resolver){
 		if(termResult)result = true;
 	}
 	return result;
-}
+};
 
-function DNFcomposable(type){
-	type.make = function(dnf){
-		return new DNF(dnf.truthy, dnf.falsey);
-	};
-	type.or   = DNF.prototype.or;
-	type.init = function(){
-		this.or = DNF.prototype.or;
-	};
-}
-
-
-function DNF(truthy, falsey){
-
-	var terms = arguments[2] || [{
-		truthy: truthy || [],
-		falsey: falsey || []
-	}];
-
-	this.each = function(map){
-		for(var i = 0; i < terms.length; i++){
-			terms[i] = map(terms[i]) || terms[i];
+DNF.prototype.map = function(mapper){
+	function copy(array){
+		var result = [];
+		for(var i = 0; i < array.length; i++){
+			result[i] = mapper(array[i]);
 		}
-	};
-	this.copy = function(){
-		return new DNF([], [], terms.slice(0));
-	};
-	this.conj = function(dnf){
-		if(dnf instanceof DNF){
-			dnf.each(function(term){
-				terms.push(term);
-			});
-		}
-	};
-}
-
-/**
- * Resolve if an dnf expression is true or false
- * @param {function} resolver - resolve a single expression to true or false
- */
-DNF.prototype.resolve = function(resolver){
-	var result = false;
-	this.each(function(term){
-		var termResult = true;
-		var t = term.truthy;
-		var f = term.falsey;
-		for(var i = 0; i < t.length; i++){
-			termResult &= resolver(t[i]);
-		}
-		for(var i = 0; i < f.length; i++){
-			termResult &= !resolver(f[i]);
-		}
-		if(termResult)result = true;
-	});
+		return result;
+	}
+	var result = [];
+	for(var i = 0; i < this.terms.length; i++){
+		result[i] = {
+			truthy: copy(this.terms[i].truthy),
+			falsey: copy(this.terms[i].falsey)
+		};
+	}
 	return result;
 }
 
@@ -116,21 +82,18 @@ DNF.prototype.resolve = function(resolver){
 // assertion := {
 // 	   type: string,        // one of 'attr', 'prop', 'meta'
 //     name: string,        // the key of the property to be tested
-//     value: any,          // the reference value to be tested against
 //     predicate: function  // evaulate property and return bool
+//     value: any,          // the reference value to be tested against
 // }
-
 function Assertion(type, name, predicate, value){
 	/**
- 	 * Test a node against assertions
+ 	 * Test a node against assertion
  	 */
-	this.match = function(node){
+	this.resolve = function(node){
 		var value = (node[type] || {})[name];
 		return predicate(value, value);
-	}
-}
-
-
+	};
+};
 
 // statesInfo := [state]
 // state := {
@@ -141,31 +104,37 @@ function Assertion(type, name, predicate, value){
 //     nextState: number,
 //     assertion: dnf<assertion>
 // }
+function States(transitions, endstates, states){
 
-function States(){
-
-	var endstates = {};
-	this.setEndState = function(i){
-		endstate[i] = true;
-	};
-	this.isEndState = function(i){
-		return endstate[i];
-	};
-
-	var transitions = {};
+	transitions = transitions || {};
 	this.addTransition = function(from, to, dnfAssertions){
 		if(!transitions[from])transitions[from] = [];
 		transitions[from].push({
 			next: to,
-			dnfa: dnfAssertions
+			dnfa: DNF.normalize(dnfAssertions)
 		});
 	};
-	this.transition = function(from, node){
+
+	endstates = endstates || {};
+	this.setEndState = function(i){
+		endstate[i] = true;
+	};
+
+	states = states || [0];
+
+	this.resolve = function(){
+		for(var i = 0; i < states.length; i++){
+			if(endstates[i])return true;
+		}
+		return false;
+	};
+
+	function findTransitions(from, node){
 		var ts = transitions[from] || [];
 		var result = [];
 		for(var i = 0; i < ts.length; i++){
-			var matches = ts[i].dnfa.resolve(function(a){
-				return a.match(node);
+			var matches = ts[i].dnfa.resolve(function(assertion){
+				return assertion.resolve(node);
 			});
 
 			if(matches){
@@ -174,23 +143,13 @@ function States(){
 		}
 		return result;
 	};
-}
 
-/**
- * Contains a set of active states
- */
-function ActiveStates(active, statesInfo){
-	var states = active || [0];
-	this.states = function(){
-		return states.slice(0);
-	};
-	this.info = statesInfo || new StatesInfo();
-
-	function transform(func){
+	this.transition(node){
+		if(states.length === 0)return this;
 		var added  = {};
 		var result = [];
 		for(var i = 0; i < states.length; i++){
-			var array = func(states[i]);
+			var array = findTransitions(i, states[i]);
 			for(var a = 0; a < array.length; a++){
 				if(!added[array[a]]){
 					added[array[a]] = true;
@@ -198,34 +157,15 @@ function ActiveStates(active, statesInfo){
 				}
 			}
 		}
-		return new ActiveStates(result, this.info);
+		return new States(transitions, endstates, result);
 	};
 
-	this.isEmpty = function(){
-		return states.length === 0;
-	};
-	this.isMatch = function(statesInfo){
-		for(var i = 0; i < states.length; i++){
-			if(this.info.isEndState(i))return true;
-		}
-		return false;
-	};
-	this.transition = function(node){
-		transform(function(state){
-			return state.
+	this.transition = function(){
+		var dnf = DNF.normalize(this);
+		return dnf.map(function(){
+
 		});
-	};
+	}
 }
 
-ActiveStates.prototype.transition = function(node, statesInfo){
-	return this.transform(function(i){
-		var transitions = states[i].transitions;
-		var result = [];
-		for(var t = 0; t < transitions.length; t++){
-			if(Assertion.assertNode(node, transitions[t].assertion)){
-				result.push(transitions[t].nextState);
-			}
-		}
-		return result;
-	});
-}
+
