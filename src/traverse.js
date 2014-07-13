@@ -72,7 +72,7 @@ function resolveDNF(dnf, resolver){
 /**
  * Match a node against assertions
  */
-function matchNode(node, dnfAssertions, meta){
+function matchNode(node, meta, dnfAssertions){
 	if(!dnfAssertions)return true;
 	return resolveDNF(dnfAssertions, function(assertion){
 		var value = node;
@@ -81,6 +81,63 @@ function matchNode(node, dnfAssertions, meta){
 		value = (value||{})[assertion.name];
 		return assertion.predicate(value, assertion.value);
 	});
+}
+
+/**
+ * Contains a set of active states
+ */
+function ActiveStates(active){
+	var states = active || [0];
+	this.states = function(){
+		return states.slice(0);
+	};
+	this.transform = function(func){
+		var added  = {};
+		var result = [];
+		for(var i = 0; i < states.length; i++){
+			var array = func(states[i]);
+			for(var a = 0; a < array.length; a++){
+				if(!added[array[a]]){
+					added[array[a]] = true;
+					result.push(array[a]);
+				}
+			}
+		}
+		return new ActiveStates(result);
+	};
+	this.isEmpty = function(){
+		return states.length === 0;
+	};
+}
+
+// states := [state]
+// state := {
+//     transitions: [transition],
+//     endstate: boolean
+// }
+// transition := {
+//     next: number,
+//     cond: dnf<assertion>
+// }
+
+function transition(node, meta, previous, states){
+	var ended  = false;
+	var active = previous.transform(function(i){
+		var transitions = states[i].transitions;
+		var result = [];
+		for(var t = 0; t < transitions.length; t++){
+			if(matchNode(node, meta, transitions[t].cond)){
+				var next = transitions[t].next;
+				if(states[next].endstate)ended = true;
+				result.push(next);
+			}
+		}
+		return result;
+	});
+	return {
+		endstate: ended,
+		active:   active
+	};
 }
 
 /**
@@ -230,88 +287,6 @@ Node.prototype.propagate = function(index, maximum){
 // Also contains meta information
 // And Match state
 // And link to .parent
-
-/**
- *
- */
-function Set(array){
-	if(array.set)return array;
-
-	var result = [];
-	result.set = {};
-
-	var oldpush = Array.prototype.push;
-	result.push = function(element){
-		var key = JSON.stringify(element);
-		if(result.set[key]){
-			oldpush.call(result, element);
-			result.set[key] = true;	
-		}
-	}
-
-	return result;
-}
-
-/**
- * Match a dom element and transform state
- * @param {object} node            - the dom node that will be matched
- * @param {object} previousMatches - current state to be transformed 
- * @param {number} maxLookAhead    - maximum transition look ahead
- */
-function transition(node, previousMatches, maxLookAhead){
-
-	// TODO cleanup names used:
-	// transition, match, matches, before...
-
-	var states   = previousMatches.states;
-	var previous = previousMatches.matches;
-	maxLookAhead = maxLookAhead || 2;
-	var matches  = [];
-	var counter  = 0;
-
-	for(var i = 0; i < states.length; i++){
-		var targetSet =  result.matches[i] = new Set([]);
-
-		for(var ahead = 0; ahead <= maxLookAhead; ahead++){
-			var iBefore = i - maxLookAhead + ahead;
-			if(iBefore < 0)continue;
-
-			for(var c = 0; c < previous[iBefore].length; c++){
-
-				// todo check if these parameters are optimal
-				var previousMatch = {
-					position: iBefore,
-					state: states[iBefore],
-					states: states,
-					context: previous[iBefore][c]
-				};
-				
-				findPossibleTransitions(node, previousMatch, i, targetSet);
-			}
-		}
-		counter += targetSet.length;
-	}
-
-	return {
-		states:  states,
-		matches: matches,
-		hasMatches: counter > 0,
-		hasEndState: (matches[matches.length-1] || []).length > 0;
-	};
-
-	// current contains all possible states
-	// current has a coolection of states that the parent of element could have matched
-	// if the last state matches current will 
-}
-
-function findPossibleTransitions(node, previousMatch, transitionToState, foundMatches){
-	// todo next
-}
-
-function matchAttributes(){
-
-}
-
 
 
 
