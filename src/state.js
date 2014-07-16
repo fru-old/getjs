@@ -17,8 +17,8 @@
 /**
  * Constructs a DNF term.
  * @constructor
- * @param {Array} truthy - the DNF term is true these objects resolve to truthy
- * @param {Array} falsey - the DNF term is true these objects resolve to falsey
+ * @param {Array=} truthy - the DNF term is true these objects resolve to truthy
+ * @param {Array=} falsey - the DNF term is true these objects resolve to falsey
  */
 function DNF(truthy, falsey){
 	this.terms = [{
@@ -44,10 +44,10 @@ DNF.prototype.or = function(target){
 /**
  * Construct an assertion
  * @constructor
- * @param {string}   type      - one of 'attr', 'prop', 'tags' and 'meta'
- * @param {string}   name      - the key of the property to be tested
- * @param {function} predicate - evaluate property and return a boolean
- * @param {?}        value     - the reference value to be tested against
+ * @param {string}   type           - one of 'attr', 'prop', 'tags' and 'meta'
+ * @param {string}   name           - the key of the property to be tested
+ * @param {function(?,?)} predicate - evaluate property and return a boolean
+ * @param {?}        value          - the reference value to be tested against
  */
 function Assertion(type, name, predicate, value){
 	/**
@@ -179,12 +179,17 @@ DNF.prototype.transition = function(node){
 		}
 		return result;
 	}
-	var result = [];
+	var result = new DNF();
 	for(var i = 0; i < this.terms.length; i++){
-		result[i] = {
+		result.terms[i] = {
 			truthy: copy(this.terms[i].truthy),
 			falsey: copy(this.terms[i].falsey)
 		};
 	}
 	return result;
 }
+
+
+window['States'] = States;
+window['DNF'] = DNF;
+window['Assertion'] = Assertion;
