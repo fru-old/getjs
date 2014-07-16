@@ -158,7 +158,7 @@ function States(states, transitions, endStates){
 				}	
 			}
 		}
-		return new States(result, transitions, endstates);
+		return new States(result, transitions, endStates);
 	};
 }
 
