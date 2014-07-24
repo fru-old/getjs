@@ -41,8 +41,85 @@ var interoperability = {
     }
 };
 
-// special mode for demo
-get.always_immediate = true;
+
+// Only global object is get
+
+// get.func    -> Type: FunctionWrapper
+// get.json    -> Type: Pointer
+// get.toml    -> Type: Pointer
+// get('path') -> Type: Pointer
+
+// pointer.get(['path', 'or'])
+// pointer.filter();
+// pointer.read();
+// pointer.toml();
+// pointer.prop();
+// pointer.attr();
+// pointer.tags();
+// pointer.path();
+// pointer.each();
+
+// pointer.toJSON({}) // seperate from read so that options can be passed 
+
+// pointer.version();
+// pointer.clone(); 
+// pointer.restore();
+// pointer.extend(); // (clone coud be version + extend)
+// pointer.component();
+
+// Pointer only store: roots, paths and operations 
+// Never stores any nodes
+// Immediate runs these directly but doesnt store found nodes
+// Except => detached roots
+// pointer.immediate();
+// pointer.prop('propname').immediate() -> returns result;
+// When not run used immediate filter for propname
+
+// apply operation op with timestamp to node n
+// 1. Check than n has never run this op -> otherwise skip all 
+// 2. When node was detached after op was issued -> increase counter
+// 3. Prepare meta data
+// 4. Match selector and if it matches run op
+// 5. Add timestamp to op.previous = {}
+// 6. Add operation to op.pending = Queue if op is still matchable
+// 7. If n is no root increase op counter on parent
+// Whenever any end is reached -> cleanup finished operations
+
+// Objects: Operation is passed to n this has a counter which is increased
+// Operation is matched and cloned (reset counter) and stored in n 
+
+
+
+// pointer.append(); === each(function(){this.append();})
+// pointer.before();
+// pointer.after();
+// pointer.detach();
+
+
+
+// TODO thinking
+// 1. Can we have an operation that runs for every newly attached node (e.g set every node to span)
+// 2. Can we bind to mutations in node and execute action when change 
+// in attr or e.g. children was detected
+// 3. meta information
+// - index of current node
+// - depth in tree (stored for every op and increased on cloning)
+// - ...
+
+// TODO
+// 1. path expression parser
+// 2. child.js rethink use of indexes!!!!
+// titles.each(function(node, next){
+//  node may only be accessed until next is called -> afterwards it throws exception
+// });
+// detached nodes do not expire
+
+// wrap called on a detached node should makes the formerly detached node expire.
+// => Explicit Root Type on which root may be called without expiring -> just the node in .root is changed and expired
+
+
+
+
 
 
 var titles = get('ResultSet.Result.[Title]').json(interoperability, {
@@ -157,3 +234,53 @@ get('xyz').html('<div> </div>');
 titles.draw('#result');
 
 
+// close tree insertion
+titles.each(function(node){
+    other.append(node.detach());
+}).immediate();
+
+
+
+
+// Get syntax
+
+get('{{title}}.name.{{other}}', {
+    title: 'title',
+    other: 'other'
+});
+
+get('title').get(1).get('x.y').get(-1)
+
+get('title1', 'title2', '{{title}}', {
+    title: 'title3'
+});
+
+get(['title1', 'title2', '{{title}}', {
+    title: 'title3'
+}]);
+
+// !!! There is a difference between first child element and first match
+// !!! get(1) works but get('title:1.xyz') does not! 
+
+
+
+// While in an each difference between each and get
+titles.each(function(){
+    this.each('filter',...) // runs immediate
+    this.get('filter').each(...) // runs later
+    this.first() // runs immediate
+    this.nth(3) // runs immediate
+    this.nth(-1) // runs immediate
+    this.last() // runs immediate 
+})
+
+// Children Length ??
+// nth(-1) & last() & get(-1) can only run when the size of 
+// children length is known or a search is started...
+
+
+
+// Global matches
+// Components may 'require' global matches 
+// If a component is added to a root so are the global path matchers
+// The component can then access them.
