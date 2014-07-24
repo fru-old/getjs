@@ -7,6 +7,7 @@
 
 /**
  * A possibly infinite stream of elements.
+ * @constructor
  * @param {Array} array      - array of elements to serve
  * @param {function=} mapper - all elements are lazily mapped with this function
  */
@@ -45,10 +46,10 @@ Stream.prototype.get = function(index, done){
  * @param {function} done            - invoked with the result of the method
  */
 Stream.prototype.next = function(minindex, assertions, done){
-	self.get(minindex, function(err, element, ended){
+	this.get(minindex, function(err, element, ended){
 		done(err, minindex, element, ended);
 	});
-}
+};
 
 // This can be used to iterate over the indexes in the stream. Assertions may be
 // used by a concrete implementation to enhance the iteration.
@@ -80,117 +81,164 @@ Stream.prototype.each = function(each, assertions, start, done){
 	});
 };
 
-// This is an 
 
-function ConcatStream(original, index, stream){
-
-	this.get = function(getindex, done){
-		if(getindex < index){
-			original.get(getindex, function(err, element, ended){
-				if(err)return done(err);
-
-				if(ended)done(null, undefined);
-				else done(null, element);
-			});
-		}else{
-			stream.get(getindex - index, function(err, element, ended){
-				if(err)return done(err);
-				if(!ended){
-					done(null, element);
-				}else{
-					original.get(getindex-ended.length, done);
-				}
-			});
-		}
-	};
-
-	this.next = function(minindex, assertions, done){
-		function next(target, cb, offset){
-			target.next(minindex+(offset||0), assertions, cb);
-		}
-		function afterIndex(){
-			next(stream, function(err, i, element, ended){
-				if(err){
-					done(err);
-				}else if(!ended){
-					done(err, i, element, ended);
-				}else{
-					next(original, done, ended.length);
-				}
-			});
-		}
-
-		if(minindex < index){
-			next(original, function(err, i, element, ended){
-				if(err){
-					done(err);
-				}else if(i < index){
-					done(err, i, element, ended);
-				}else{
-					afterIndex();
-				}
-			});
-		}else{
-			afterIndex();
-		}
+/**
+ * Next element at index and offset all indexes by a given number.
+ * @param {Stream|Children} target   - 
+ * @param {function} cb   - 
+ * @param {number} index  - 
+ * @param {DNF|Assertion} assertions -
+ * @param {number} offset - 
+ */
+function next(target, cb, index, assertions, offset){
+	if(!offset)offset = 0;
+	function offsetCb(err, i, element, ended){
+		if(ended)ended.length -= offset;
+		cb(err, i - offset, element, ended);
 	}
+	target.next(index + offset, assertions, offsetCb);
 }
 
-function RemoveStream(original, index, count){
-	var ending = index + count - 1;
+/**
+ * Get element at index and offset all indexes by a given number.
+ * @param {Stream|Children} target   - 
+ * @param {function} cb   - 
+ * @param {number} index  - 
+ * @param {number} offset - 
+ */
+function get(target, cb, index, offset){
+	if(!offset)offset = 0;
+	function offsetCb(err, element, ended){
+		if(ended)ended.length -= offset;
+		cb(err, element, ended);
+	}
+	target.get(index + offset, offsetCb);
+}
+
+
+/**
+ * Build a stream that is a concatination of two existing streams.
+ * @constructor
+ */
+function AppendStream(original, stream){
 
 	this.get = function(getindex, done){
-		if(getindex >= index){
-			getindex += count;
-		}
 		original.get(getindex, function(err, element, ended){
-			if(ended){
-				var length = ended.length;
-				if(length>index){
-					if(length<index+count)length = index;
-					else length -= count;
-				}
-				ended.length = length;
+			if(err)return done(err);
+			if(!ended){
+				done(null, element);
+			}else{
+				get(stream, done, getindex, -ended.length);
 			}
-			done(err, element, ended);
 		});
 	};
 
 	this.next = function(minindex, assertions, done){
-		function nextAfterRemove(){
-			if(minindex < index + count)minindex = index + count;
-			original.next(minindex, assertions, function(err, i, e, ended){
-				done(err, i - count, e, ended);
-			});
-		}
-		if(minindex < index){
-			original.next(minindex, assertions, function(err, i, e, ended){
-				if(err)done(err);
-				else if(i < index)done(err, i, e, ended);
-				else nextAfterRemove();
-			});
-		}else{
-			nextAfterRemove();
-		}
+		next(original, function(err, i, element, ended){
+			if(err)return done(err);
+			if(!ended){
+				done(err, i, element, null);
+			}else{
+				next(stream, done, minindex, assertions, -ended.length);
+			}
+		}, minindex, assertions);
 	};
 }
 
+/**
+ * Build a substream of an existing stream.
+ * @constructor
+ */
+function SubStream(original, index, count, fill){
 
+	this.get = function(getindex, done){
+		if(getindex >= count && fill){
+			return done(null, null, {length: count});
+		}
+		get(original, function(err, element, ended){
+			if(err)return done(err);
+			if(ended && fill){
+				done(err, undefined, null);
+			}else{
+				done(err, element, ended);
+			}
+		}, getindex, index);
+	};
 
+	this.next = function(minindex, assertions, done){
+		if(minindex >= count && fill){
+			return done(null, null, null, {length: count});
+		}
+		next(original, function(err, i, element, ended){
+			if(err)return done(err);
+			if((!ended || fill) && i >= count){
+				done(err, null, null, {length: count});
+			}else{
+				if(fill && ended){
+					done(err, i, undefined, null);
+				}else{
+					done(err, i, element, ended);
+				}
+			}
+		}, minindex, assertions, index);
+	};
+}
+
+var infity = Number.POSITIVE_INFINITY;
+
+/**
+ * Childreen class that contains a collection of nodes and exposes all basic
+ * transformations that can be executed on the collection.
+ */
 function Children(initial){
+	if(!(initial instanceof Stream)){
+		initial = null;
+	}
 	this.stream = initial || new Stream();
 }
 
 Children.prototype = new Stream();
 
-Children.prototype.append = function(stream){
-
+Children.prototype.get = function(index, done){
+	return this.stream.get(index, done);
 };
 
-Children.prototype.insert = function(index, stream){
+Children.prototype.next = function(minindex, assertions, done){
+	return this.stream.next(minindex, assertions, done);
+};
 
+Children.prototype.each = function(each, assertions, start, done){
+	return this.stream.each(each, assertions, start, done);
+};
+
+Children.prototype.append = function(element){
+	if(!(element instanceof Stream)){
+		element = new Stream([element]);
+	}
+	this.stream = new AppendStream(this.stream, element);
+};
+
+Children.prototype.insert = function(index, element){
+	if(!(element instanceof Stream)){
+		element = new Stream([element]);
+	}
+	var head = new SubStream(this.stream, 0, index, true);
+	var tail = new SubStream(this.stream, index, infity);
+	tail = new AppendStream(element, tail);
+	this.stream = new AppendStream(head, tail);
 };
 
 Children.prototype.detach = function(index, length){
-
+	var head = new SubStream(this.stream, 0, index, true);
+	var tail = new SubStream(this.stream, index+length, infity);
+	var mid  = new SubStream(this.stream, index, length);
+	this.stream = new AppendStream(head, tail);
+	return mid;
 };
+
+Children.Stream = Stream;
+
+module.exports = Children;
+
+
+
