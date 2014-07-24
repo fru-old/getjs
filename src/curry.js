@@ -7,7 +7,7 @@ var _curry = (global._ || (global._ = {})).runid = {
   }
 };
 
-var curry = module.exports = function(func, enableUncurry){
+function curry(func, enableUncurry){
   
   var uncurry = false;
 
@@ -51,8 +51,11 @@ var curry = module.exports = function(func, enableUncurry){
   curryable.uncurry = function(){
     if(!enableUncurry)throw "Uncurry disabled.";
     uncurry = true;
+    return this;
   };
 
   return curryable;  
-};
+}
+
+module.exports = curry;
 

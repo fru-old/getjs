@@ -56,10 +56,10 @@ function Assertion(type, name, predicate, value){
  	 * @returns {boolean}   - true only when the assertion is true
  	 */
 	this.resolve = function(node){
-		var value = (node[type] || {})[name];
-		return predicate(value, value);
+		var expected = (node[type] || {})[name];
+		return predicate(value, expected);
 	};
-};
+}
 
 // Now we extend DNF to include the same resolve method that Assertion uses.
 
@@ -75,11 +75,11 @@ DNF.prototype.resolve = function(node){
 		var termResult = true;
 		var t = this.terms[i].truthy;
 		var f = this.terms[i].falsey;
-		for(var i = 0; i < t.length; i++){
-			termResult &= t[i].resolve(node);
+		for(var j = 0; j < t.length; j++){
+			termResult &= t[j].resolve(node);
 		}
-		for(var i = 0; i < f.length; i++){
-			termResult &= !f[i].resolve(node);
+		for(var k = 0; k < f.length; k++){
+			termResult &= !f[k].resolve(node);
 		}
 		if(termResult)result = true;
 	}
@@ -131,7 +131,7 @@ function States(states, transitions, endStates){
  	 */
 	this.resolve = function(){
 		for(var i = 0; i < states.length; i++){
-			if(endStates[i])return true;
+			if(endStates[states[i]])return true;
 		}
 		return false;
 	};
@@ -148,9 +148,9 @@ function States(states, transitions, endStates){
 		var result = [];
 		for(var i = 0; i < states.length; i++){
 			var trans = transitions[states[i]] || [];
-			for(var i = 0; i < trans.length; i++){
-				if(trans[i].dnfa.resolve(node)){
-					var newValue = trans[i].next;
+			for(var j = 0; j < trans.length; j++){
+				if(trans[j].dnfa.resolve(node)){
+					var newValue = trans[j].next;
 					if(!added[newValue]){
 						added[newValue] = true;
 						result.push(newValue);
@@ -187,9 +187,8 @@ DNF.prototype.transition = function(node){
 		};
 	}
 	return result;
-}
+};
 
-
-window['States'] = States;
-window['DNF'] = DNF;
-window['Assertion'] = Assertion;
+module.exports.States = States;
+module.exports.DNF = DNF;
+module.exports.Assertion = Assertion;

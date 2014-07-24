@@ -6,7 +6,7 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-contrib-watch');
 	grunt.loadNpmTasks('grunt-qunit-examples');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
-	grunt.loadNpmTasks('grunt-jsdoc');
+	grunt.loadNpmTasks('grunt-closure-tools');
 
 	var pkg = grunt.file.readJSON('package.json');
 
@@ -74,24 +74,28 @@ module.exports = function(grunt) {
 				}
 			}
 		},
-
-		uglify: {
+		
+		closureCompiler: {
+		  	options: {
+				compilerFile: require('closure-compiler').JAR_PATH,
+				compilation_level: 'SIMPLE_OPTIMIZATIONS'
+			},
 			all: {
 				src: 'dist/run.js',
 				dest: 'dist/run-'+pkg.version+'.min.js'
-    		}	
-  		},
+			}
+		},
 
-  		jsdoc : {
-	        dist : {
-	            src: ['src/*.js'], 
-	            options: {
-	                destination: 'report/jsdocs'
-	            }
-	        }
-	    }
+		jsdoc : {
+			dist : {
+				src: ['src/*.js'], 
+				options: {
+					destination: 'report/jsdocs'
+				}
+			}
+		}
 	});
 	
 	grunt.registerTask('build', ['concat', 'jshint', 'qunit']);
-	grunt.registerTask('default', ['build', 'uglify', 'size', 'jsdoc', 'watch']);
+	grunt.registerTask('default', ['build', 'closureCompiler', 'size', 'watch']);
 };

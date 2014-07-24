@@ -35,7 +35,8 @@
     "grunt-contrib-jshint": "~0.10.0",
     "grunt-contrib-uglify": "^0.5.0",
     "maxmin": "^0.2.0",
-    "grunt-jsdoc": "^0.5.6"
+    "closure-compiler": "~0.2.6",
+    "grunt-closure-tools": "~0.9.7"
   },
   "keywords": [
     "gruntplugin"

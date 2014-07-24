@@ -1,0 +1,289 @@
+
+<!DOCTYPE HTML>
+
+<html>
+<head>
+  <title>Caret.js</title>
+  <meta http-equiv="x-ua-compatible" content="IE=Edge"/>
+  <meta name="viewport" content="width=device-width initial-scale=1.0 user-scalable=no">
+
+  <script type="text/javascript" src="./jquery-1.11.1.js"></script>
+  <script type="text/javascript" src="./jquery.caret.js"></script>
+
+  <script type="text/javascript">
+
+function getTextSelection(el) {
+    var start = 0, end = 0, normalizedValue, range,
+        textInputRange, len, endRange;
+
+    if (typeof el.selectionStart == "number" && typeof el.selectionEnd == "number") {
+        start = el.selectionStart;
+        end   = el.selectionEnd;
+    } else {
+        range = document.selection.createRange();
+
+        if (range && range.parentElement() == el) {
+            len = el.value.length;
+            normalizedValue = el.value.replace(/\r\n/g, "\n");
+
+            // Create a working TextRange that lives only in the input
+            textInputRange = el.createTextRange();
+            textInputRange.moveToBookmark(range.getBookmark());
+
+            // Check if the start and end of the selection are at the very end
+            // of the input, since moveStart/moveEnd doesn't return what we want
+            // in those cases
+            endRange = el.createTextRange();
+            endRange.collapse(false);
+
+            if (textInputRange.compareEndPoints("StartToEnd", endRange) > -1) {
+                start = end = len;
+            } else {
+                start = -textInputRange.moveStart("character", -len);
+                start += normalizedValue.slice(0, start).split("\n").length - 1;
+
+                if (textInputRange.compareEndPoints("EndToEnd", endRange) > -1) {
+                    end = len;
+                } else {
+                    end = -textInputRange.moveEnd("character", -len);
+                    end += normalizedValue.slice(0, end).split("\n").length - 1;
+                }
+            }
+        }
+    }
+    return {start: start, end: end};
+}
+
+
+ function resizeBox (offset) {
+		$corbox = $('.coordinate-box');
+$cursor = $('.cursor');
+      $corbox.css({'width': offset.left, 'height': offset.top})
+      $cursor.offset({left: offset.left, top: offset.top + offset.height + 2})
+        .html("&nbsp; left: " + offset.left + ", " + "top: " + offset.top + "&nbsp;" + "height: " + offset.height);
+    }
+
+  $(function () {
+    $input = $('#input');
+    $editable = $('#editable')
+    $corbox = $('.coordinate-box');
+    $cursor = $('.cursor');
+
+    function inputOffset() {
+      var offset = $input.caret('offset');
+      if(offset)
+        resizeBox(offset);
+      return offset
+    }
+    function editableOffset() {
+      var offset = $editable.caret('offset');
+      if (offset)
+        resizeBox(offset);
+      return offset
+    }
+
+	var interval = setInterval(function(){
+		// input simple
+		if(window.getSelection().rangeCount > 0){
+			clearInterval(interval);
+			var range = window.getSelection().getRangeAt(0);
+
+			console.log(range);
+			
+			var range2 = range.cloneRange();
+			range2.selectNodeContents($('#input')[0]); 
+			range2.setEnd(range.endContainer, range.endOffset);
+
+			console.log(range2);
+		}
+	}, 2000);
+
+	
+
+	
+
+	
+
+
+
+
+   
+    /*$input.on('focus keyup mouseup', function(){
+      inputOffset();
+    });
+    $editable.on('focus keyup mouseup', function(){
+      editableOffset();
+    });
+    $(window).resize(function() {
+      if ($input.is(":focus"))
+        inputOffset();
+      else
+        editableOffset();
+    });
+    $input.caret('pos', 53).focus();*/
+
+    // CKEDITOR.config.toolbar = [[ 'Source', '-', 'Bold', 'Italic' ]];
+    // CKEDITOR.replace( 'ckEditor', {
+    // });
+    // CKEDITOR.instances.ckEditor.on('instanceReady', function() {
+    //   ifr = $('.cke_wysiwyg_frame')[0];
+    //   $ckBody = $('body', ifr.contentDocument);
+    //   $ckBody.on('keyup mouseup', function() {
+    //     offset = $ckBody.caret('offset');
+    //     resizeBox(offset);
+    //   });
+    ifr = $('#iframe1')[0];
+    ifrBody = ifr.contentDocument.body;
+    ifrBody.contentEditable = true;
+    ifrBody.id = 'ifrBody';
+    ifrBody.innerHTML = 'For <strong>WYSIWYG</strong> such as <strong>ckeditor</strong>'
+	/*
+    $(ifrBody).on('keyup mouseup', function() {
+      resizeBox($(ifrBody).caret('offset', {iframe: ifr}));
+    });
+	*/
+
+  });
+  </script>
+
+  <style type="text/css">
+  html, body {
+    background:#F9F9F9;
+    padding: 0;
+    margin: 0;
+    font: 14px/1.6 "Lucida Grande", "Helvetica", sans-serif;
+    color: #333;
+  }
+  h1,h2,h3,h4 {
+    font-family: 'PT Sans', sans-serif;
+    line-height: 40px;
+    color: inherit;
+    font-weight: bold;
+    margin: 10px 0;
+    text-rendering: optimizelegibility;
+  }
+  h2,h3 {
+    color: gray;
+  }
+  header {
+    margin-top:70px;
+    margin-bottom: 50px;
+  }
+  header h1 {
+    text-align: center;
+    font-size:56px;
+  }
+  h1 i {
+    color: rgb(182, 180, 180);
+    font-style: normal;
+    font-weight: normal;
+  }
+
+  span {
+    position: absolute;
+    display: inline-block;
+  }
+
+  a {
+    color: #4183C4;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  strong {
+    color: #424242;
+  }
+
+  .wrapper {
+    width: 55%;
+    padding: 20px;
+    margin: 0 auto;
+  }
+
+  @media only screen and (max-width: 600px) {
+    .wrapper {
+      width: 95%;
+    }
+  }
+
+  @media only screen and (max-width: 1120px) {
+    .wrapper {
+      width: 80%;
+    }
+  }
+
+  .inputor {
+    overflow: auto;
+    height: 160px;
+    width: 90%;
+    border: 1px solid #dadada;
+    border-radius: 4px;
+    padding: 5px 8px;
+    outline: 0 none;
+    margin: 10px 0;
+    background: white;
+  }
+  .inputor:focus {
+    border: 1px solid rgb(6, 150, 247);
+  }
+
+  .github {
+    text-align: center;
+  }
+
+  footer {
+    margin: 30px 0;
+  }
+
+  .coordinate-box {
+    border-right: 2px dashed gray;
+    border-bottom: 2px dashed gray;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 999;
+  }
+  .cursor {
+    border: 2px solid gray;
+    position: absolute;
+    z-index: 999;
+    margin: 30px;
+  }
+
+  </style>
+</head>
+
+<body>
+  <div class="container wrapper">
+    <!-- <a id="github" href="https://github.com/ichord/Caret.js" target="_blank"><img style="position: absolute; top: 0; right: 0; border: 0; z-index:999" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a> -->
+    <header>
+      <h1>Caret<i>.js</i></h1>
+    </header>
+
+    <div id="main">
+      <h2>Textarea</h2>
+      <textarea id="input" class="inputor">
+
+
+
+                          Type something here for fun!!
+
+      </textarea>
+
+      <h2>ContentEditable</h2>
+      <div id="editable" class="inputor" contentEditable="true">
+Hello, some <b>bold</b> and <i>italic</i> and <b><i>bold</i></b> text
+      </div>
+
+      <h2>iframe body</h2>
+      <iframe id="iframe1" src="" class="inputor">
+      </iframe>
+
+      <div class="coordinate-box"></div>
+      <div class="cursor"></div>
+    </div>
+  </div>
+</body>
+
+</html>

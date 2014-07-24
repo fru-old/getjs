@@ -41,17 +41,8 @@ var isTable   = /^(\s*)\[(\[?)([^\[\]]*)\]\]?\s*(?:#.*)?$/;
  */
 var canBeLine = /^\s*([^ \t\[\]]*)\s*=(.*)$/;
 
-// Random string to escape dollar (other types of escaping may fail)
-var dollar = 'DollarWWbpyfvjYHaPCXNRW2YTjqj4AvxrC4mZ9BBHFJZ9VNyp';
-
-function unescape(string){
-	return string.replace(dollar, '$$');
-}
 
 exports.parse = function (code, walker){
-
-	// We are going to use replace - so escape dollar	
-	code = code.replace(/\$/g, dollar);
 
 	// Split into lines and normalize whitespace
 	code = code.replace(/\r/g, '').split('\n');
@@ -132,7 +123,7 @@ function parseLine(table, line, i, current, end, walker){
 			lastAttrs = {};
 		}else if(line){
 
-			lastAttr = unescape(line[1]).trim();
+			lastAttr = line[1].trim();
 			lastExpr = line[2]; 
 		}else{
 

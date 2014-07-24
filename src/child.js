@@ -16,27 +16,6 @@ function Stream(array, mapper){
 	this.mapper = mapper;
 }
 
-// Get may encounter the end of the stream. The third argument of the callback
-// is set to the actual length of the stream when this happens.
-
-/**
- * Asynchronous, retrieve a child at a particular index. When the third
- * parameter of the done callback is a number, the end of the stream was 
- * encountered.
- * @param {number} index  - index of the element to be returned
- * @param {function} done - invoked with the result of the method
- */
-Stream.prototype.get = function(index, done){
-	if(index >= this.elements.length){
-		done(null, null, {length: this.elements.length});
-	}else{
-		var element = this.elements[index];
-		if(this.mapper)element = this.mapper(element);
-		done(null, element);
-	}
-	
-};
-
 /**
  * Asynchronous, return the next element that may match the assertions. This may
  * be overrided to do more concrete enhancements that take the assertions into
@@ -46,9 +25,13 @@ Stream.prototype.get = function(index, done){
  * @param {function} done            - invoked with the result of the method
  */
 Stream.prototype.next = function(minindex, assertions, done){
-	this.get(minindex, function(err, element, ended){
-		done(err, minindex, element, ended);
-	});
+	if(minindex >= this.elements.length){
+		done(null, minindex, null, {length: this.elements.length});
+	}else{
+		var element = this.elements[minindex];
+		if(this.mapper)element = this.mapper(element);
+		done(null, minindex, element);
+	}
 };
 
 // This can be used to iterate over the indexes in the stream. Assertions may be
@@ -100,38 +83,10 @@ function next(target, cb, index, assertions, offset){
 }
 
 /**
- * Get element at index and offset all indexes by a given number.
- * @param {Stream|Children} target   - 
- * @param {function} cb   - 
- * @param {number} index  - 
- * @param {number} offset - 
- */
-function get(target, cb, index, offset){
-	if(!offset)offset = 0;
-	function offsetCb(err, element, ended){
-		if(ended)ended.length -= offset;
-		cb(err, element, ended);
-	}
-	target.get(index + offset, offsetCb);
-}
-
-
-/**
  * Build a stream that is a concatination of two existing streams.
  * @constructor
  */
 function AppendStream(original, stream){
-
-	this.get = function(getindex, done){
-		original.get(getindex, function(err, element, ended){
-			if(err)return done(err);
-			if(!ended){
-				done(null, element);
-			}else{
-				get(stream, done, getindex, -ended.length);
-			}
-		});
-	};
 
 	this.next = function(minindex, assertions, done){
 		next(original, function(err, i, element, ended){
@@ -150,20 +105,6 @@ function AppendStream(original, stream){
  * @constructor
  */
 function SubStream(original, index, count, fill){
-
-	this.get = function(getindex, done){
-		if(getindex >= count && fill){
-			return done(null, null, {length: count});
-		}
-		get(original, function(err, element, ended){
-			if(err)return done(err);
-			if(ended && fill){
-				done(err, undefined, null);
-			}else{
-				done(err, element, ended);
-			}
-		}, getindex, index);
-	};
 
 	this.next = function(minindex, assertions, done){
 		if(minindex >= count && fill){
@@ -200,7 +141,9 @@ function Children(initial){
 Children.prototype = new Stream();
 
 Children.prototype.get = function(index, done){
-	return this.stream.get(index, done);
+	return this.stream.next(index, null, function(){
+		
+	});
 };
 
 Children.prototype.next = function(minindex, assertions, done){
