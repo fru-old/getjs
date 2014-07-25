@@ -51,13 +51,14 @@ var interoperability = {
 
 // pointer.get(['path', 'or'])
 // pointer.filter();
-// pointer.read();
+// pointer.json(); // or read??
 // pointer.toml();
 // pointer.prop();
 // pointer.attr();
 // pointer.tags();
 // pointer.path();
 // pointer.each();
+// pointer.text();
 
 // pointer.toJSON({}) // seperate from read so that options can be passed 
 
@@ -94,6 +95,9 @@ var interoperability = {
 // pointer.before();
 // pointer.after();
 // pointer.detach();
+// pointer.wrap();
+// pointer.replace();
+// pointer.unwrap();
 
 
 
@@ -104,7 +108,9 @@ var interoperability = {
 // 3. meta information
 // - index of current node
 // - depth in tree (stored for every op and increased on cloning)
-// - ...
+// - NO contextual information or scopes
+// 4. how does extend work lazily 
+// - maybe node.intercept(...) can intercept all calls to children, attr, ...
 
 // TODO
 // 1. path expression parser
@@ -117,7 +123,11 @@ var interoperability = {
 // wrap called on a detached node should makes the formerly detached node expire.
 // => Explicit Root Type on which root may be called without expiring -> just the node in .root is changed and expired
 
-
+// Why no two way binding
+// Because of shared state -> far more versatile and concise
+// html templates have no for or ifs and only very basic {{binding}}
+// -> because there are only usefull to avoid a flash of unstyled content
+// -> when all data has arived we can draw from json anyway
 
 
 
@@ -283,4 +293,6 @@ titles.each(function(){
 // Global matches
 // Components may 'require' global matches 
 // If a component is added to a root so are the global path matchers
-// The component can then access them.
+// The component can then access them. 
+// Is div / span inline seperator also component ??
+
