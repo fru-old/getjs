@@ -50,7 +50,7 @@ var interoperability = {
 // get('path') -> Type: Pointer
 
 // pointer.get(['path', 'or'])
-// pointer.has();
+// pointer.filter();
 // pointer.json(); // or read??
 // pointer.toml();
 // pointer.prop();
@@ -73,6 +73,8 @@ var interoperability = {
 // Immediate runs these directly but doesnt store found nodes
 // Except => detached roots
 // pointer.immediate();
+// pointer.prop('propname').immediate() -> returns result;
+// When not run used immediate filter for propname
 
 // apply operation op with timestamp to node n
 // 1. Check than n has never run this op -> otherwise skip all 
@@ -128,7 +130,7 @@ var interoperability = {
 // -> when all data has arived we can draw from json anyway
 
 
-
+/*
 
 var titles = get('ResultSet.Result.[Title]').json(interoperability, {
 	// ResultSet checks tags.name and then tags.prop
@@ -175,7 +177,7 @@ titles.each('[Title]',function(){
 	node.text(this.prop('Title'));
 });
 
-titles.has(':single').each(function(){
+titles.filter(':single').each(function(){
 	// ResultSet.Result.[Title]:single
 	// Returns a single instance - which may not be the first instance in the document
 	// !== titles.each(':single',function(){ this filters just before each is run
@@ -274,13 +276,13 @@ get(['title1', 'title2', '{{title}}', {
 
 // While in an each difference between each and get
 titles.each(function(){
-    this.each('filter',...) // runs immediate
-    this.get('filter').each(...) // runs later
-    this.first() // runs immediate
-    this.nth(3) // runs immediate
-    this.nth(-1) // runs immediate
-    this.last() // runs immediate 
-})
+    this.each('filter',...); // runs immediate
+    this.get('filter').each(...); // runs later
+    this.first(); // runs immediate
+    this.nth(3); // runs immediate
+    this.nth(-1); // runs immediate
+    this.last(); // runs immediate 
+});
 
 // Children Length ??
 // nth(-1) & last() & get(-1) can only run when the size of 
@@ -293,6 +295,9 @@ titles.each(function(){
 // If a component is added to a root so are the global path matchers
 // The component can then access them. 
 // Is div / span inline seperator also component ??
+
+*/
+
 
 
 // clone difficulty

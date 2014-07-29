@@ -63,6 +63,44 @@ var require = run.require = function(id) {
 	
 	return modules[id];
 };
+;define("src/belt", function(require, exports, module){/*
+
+get(...) -> Intermediate
+get -> Intermediate
+
+Intermediate.has(...) -> Intermediate
+Intermediate.json(...) -> Intermediate
+Intermediate.toJSON(...) -> JSON
+Intermediate.immediate(options)
+
+Intermediate.each(...) -> Intermediate
+Node.iterate() -> Runs directly
+
+Node.get() -> Intermediate
+Node.append(newnode)
+Node.before(childnode, newnode)
+Node.after(childnode, newnode)
+Node.detach(childnode) -> Root
+Node.wrap(childnode, newnode) 
+Node.replace(childnode, newnode) -> childnode
+Node.removeAll() -> Stream???? could potentialy replace unwrap
+Node.unwrap(childnode) -> wrappingnode
+Node.clone(childnode) -> ROOT
+
+Node.prop(...)
+Node.attr(...)
+Node.tags(...)
+Node.path(...)
+Node.text(...)
+
+
+
+
+*/
+
+
+
+});
 ;define("src/child", function(require, exports, module){
 // A static collection of elements which can be extended to serve data from ajax
 // and other asynchronous sources. A stream does not provide a mechanism to
@@ -368,6 +406,279 @@ function getTextSelection(el) {
     return {start: start, end: end};
 }
 });
+;define("src/node", function(require, exports, module){
+/**
+ * Global id generator to return ascending ids. 
+ */
+var ID = {
+	current: 1,
+	ascending: function(){
+		return ID.current++;
+	} 
+};
+
+/**
+ * Any cloned node can have multiple simultaneous versions
+ */
+function VersionedNode(initial){
+	this[initialVersion] = initial;
+}
+
+// Global initial Version
+var initialVersion = ID.ascending();
+
+// Used during iteration
+VersionedNode.prototype.getVersion = function(id){
+	if(!this[id]){
+		throw new Error('Sanity Check Failed: Wrong Version');
+	}else if(this[id] instanceof Node){
+		return this[id];
+	}else{
+		return this[this[id]];
+	}
+};
+
+// Internal operation on the node
+VersionedNode.prototype.cloneVersion = function(original, id){
+	if(this[original] instanceof Node){
+		this[id] = original;
+	}else if(this[this[original]] instanceof Node){
+		this[id] = this[original];
+	}else{
+		throw new Error('Sanity Check Failed: No Original Version');
+	}
+};
+
+// Used during iteration when a match was found
+VersionedNode.prototype.changeVersion = function(id, clonefunc){
+	if(this[id] instanceof Number){
+		this[id] = clonefunc(this[this[id]]);
+	}
+};
+
+/**
+ * Versioned root
+ */
+function VersionedRoot(vnode, version){
+	this.getRoot = function(){
+		vnode.getVersion(version || initialVersion);
+	};
+}
+
+// Intermediate.each(...) -> Intermediate
+// Node.iterate() -> Runs directly
+
+
+
+
+function Node(){
+
+}
+
+
+
+function Root(){
+
+}});
+;define("src/query", function(require, exports, module){
+/**
+ * Map Shim - https://gist.github.com/jed/1031568
+ */
+if(![].map)Array.prototype.map = function(func){
+	var self   = this;
+	var length = self.length;
+	var result = [];
+	for (var i = 0; i < length; i++){
+		if(i in self){
+			result[i] = func.call(
+				arguments[1], // an optional scope
+				self[i],
+				i,
+				self
+			);
+		}
+	}
+	result.length = length;
+	return result;
+};
+
+function Parsable(original){
+	this.original = original;
+}
+
+Parsable.tokenize = function(string, regex){
+	var pos = 0, line = 0;
+	return new Parsable(string.match(regex).map(function(token){
+		var result = {
+			data: token, 
+			line: line, 
+			pos: pos, 
+			assert: function(expected, check){
+				if(expected === 'name'){
+					if('#:[]=!<>.*{}'.indexOf(token[0])===-1)return true;
+				}
+				if(this.data === expected ){
+					return true;
+				}
+				if(check)return false;
+				var msg = 'Expected "'+expected+'" but found "'+this.data+'"';
+				throw new Error(msg+' line:'+this.line+' column:'+this.pos);
+			}
+		};
+		pos += token.length;
+		return result;
+	}));
+};
+
+Parsable.prototype.parse = function(each){
+	var status, state = 0;
+	return new Parsable(this.original.map(function(token, i){
+		if(!token)return token;
+		var removed = false;
+		var actions = {
+			addState: function(s){ state += s; },
+			setState: function(s){ state = s; },
+			addName: function(value){
+				if(status)removed=true;
+				else status = {};
+				if(!status.name)status.name = [];
+				status.name.push(value);
+				return status;
+			},
+			reset: function(){
+				//var oldstatus = status;
+				status = null;
+				//return oldstatus;
+			},
+			expected: function(expected, check){token.assert(expected, check);},
+			remove:   function(){removed=true;}, // deprecated
+			attached: function(key, value, noRemove){removed=true;}
+		};
+		var result  = each.call(actions, token.data, state, status) || token.data;
+		return removed ? null : {data: result, line: token.line, pos: token.pos, assert: token.assert};
+	}));
+};
+
+function foldNames2(string){
+	var state = 0, current;
+	// 0 -> current may be falsy or the current name
+	// 1 -> {{
+	// 2 -> {{temp
+	// 3 -> {{temp}
+	// 4 -> {{temp}}
+	return tokenize(string).parse(function(token, state, current){
+		switch (state) {
+    		case 0:
+    			if(token[0] === '*'){
+					return this.addName({wildcard: token.length});
+				}else if(token !== '{'){
+					if(this.expected('name', true)){
+						return this.addName({constant: token});
+					}
+					console.log("!!!!!!!!!!!!!!!!!");
+					console.log(token);
+					break;
+				}
+			/* falls through */
+    		case 1:
+    			this.expected('{');
+    			this.addState(1);
+    			break;
+    		case 2:
+    			this.expected('name');
+    			this.addName({breakets: token});
+    			this.addState(1);
+    			break;
+    		case 3:
+    			this.expected('}');
+    			this.addState(1);
+    			break;
+    		case 4:
+    			this.expected('}');
+    			this.setState(0);
+    			break;
+    	}
+	});
+}
+
+function tokenize(string){
+	var r = /\#|\:|\[|\]|[\=\!<>]+|\{|\}|\*+|\.|[^\#\:\[\]\=\!<>\{\}\*\.]+/g;
+	return Parsable.tokenize(string, r);
+}
+
+exports.parse = function(string){
+	var state = 0, current, result = [[]];
+	// 0 -> default
+	// 1 -> name after #
+	// 2 -> name after :
+	// 3 -> possibly [ after :
+	// 4 -> allready found [
+	// 5 -> allready found [name
+	// 6 -> allready found [name=
+	// 7 -> expect ]
+
+	foldNames2(string).parse(function(token){
+		if(!token || token === '.')return;
+
+		//console.log(JSON.stringify(token));
+
+		if(state === 5){
+			if('=!<>'.indexOf(token[0])!==-1){
+				current.assert = token;
+				state = 6;
+			}else{
+				if(token !== ']')this.expected(']');
+				state = 0;
+			}
+			return this.remove();
+		}else if(state === 0 || state === 3){
+			console.log(token);
+			if(token.name){
+				return {type: '_', name: token.name};
+			}else if(token === '#'){
+				state = 1;
+			}else if(token === ':'){
+				state = 2;
+			}else if(token === '['){
+				if(state === 3){
+					state = 4;
+					return this.remove();
+				}else{
+					state = 4;
+				}
+			}else{
+				this.expected('#, : or [');
+			}
+			return (current = {type: token});
+		}else if(state === 1 || state === 2){
+			if(!token.name)this.expected('name');
+			current.name = token.name;
+			state = (state === 1 ? 0 : 3);
+			this.remove();
+		}else if(state === 4 || state === 6){
+			if(!token.name)this.expected('name');
+			var key = (state === 4 ? 'prop' : 'value');
+			current[key] = token.name;
+			this.remove();
+			state+=1;
+		}else if(state === 7){
+			if(token !== ']')this.expected(']');
+			state = 0;
+			return this.remove();
+		}
+	}).original.map(function(token){
+		if(token && token.data === '.'){
+			result.push([]);
+		}else if(token){
+			result[result.length-1].push(token.data);
+		}
+	});
+	if(state!==0){
+		throw new Error('Unexpected ending.');
+	}
+
+	return result;
+};});
 ;define("src/state", function(require, exports, module){// ** This file describes the state machine that underlies runjs selectors. They
 // are specified in a declarative manner. **
 
@@ -929,13 +1240,14 @@ var interoperability = {
 
 // pointer.get(['path', 'or'])
 // pointer.filter();
-// pointer.read();
+// pointer.json(); // or read??
 // pointer.toml();
 // pointer.prop();
 // pointer.attr();
 // pointer.tags();
 // pointer.path();
 // pointer.each();
+// pointer.text();
 
 // pointer.toJSON({}) // seperate from read so that options can be passed 
 
@@ -972,6 +1284,9 @@ var interoperability = {
 // pointer.before();
 // pointer.after();
 // pointer.detach();
+// pointer.wrap();
+// pointer.replace();
+// pointer.unwrap();
 
 
 
@@ -982,7 +1297,9 @@ var interoperability = {
 // 3. meta information
 // - index of current node
 // - depth in tree (stored for every op and increased on cloning)
-// - ...
+// - NO contextual information or scopes
+// 4. how does extend work lazily 
+// - maybe node.intercept(...) can intercept all calls to children, attr, ...
 
 // TODO
 // 1. path expression parser
@@ -995,10 +1312,14 @@ var interoperability = {
 // wrap called on a detached node should makes the formerly detached node expire.
 // => Explicit Root Type on which root may be called without expiring -> just the node in .root is changed and expired
 
+// Why no two way binding
+// Because of shared state -> far more versatile and concise
+// html templates have no for or ifs and only very basic {{binding}}
+// -> because there are only usefull to avoid a flash of unstyled content
+// -> when all data has arived we can draw from json anyway
 
 
-
-
+/*
 
 var titles = get('ResultSet.Result.[Title]').json(interoperability, {
 	// ResultSet checks tags.name and then tags.prop
@@ -1144,13 +1465,13 @@ get(['title1', 'title2', '{{title}}', {
 
 // While in an each difference between each and get
 titles.each(function(){
-    this.each('filter',...) // runs immediate
-    this.get('filter').each(...) // runs later
-    this.first() // runs immediate
-    this.nth(3) // runs immediate
-    this.nth(-1) // runs immediate
-    this.last() // runs immediate 
-})
+    this.each('filter',...); // runs immediate
+    this.get('filter').each(...); // runs later
+    this.first(); // runs immediate
+    this.nth(3); // runs immediate
+    this.nth(-1); // runs immediate
+    this.last(); // runs immediate 
+});
 
 // Children Length ??
 // nth(-1) & last() & get(-1) can only run when the size of 
@@ -1161,7 +1482,37 @@ titles.each(function(){
 // Global matches
 // Components may 'require' global matches 
 // If a component is added to a root so are the global path matchers
-// The component can then access them.});
+// The component can then access them. 
+// Is div / span inline seperator also component ??
+
+*/
+
+
+
+// clone difficulty
+// Startegy:
+// 1. get('...').clone();
+// 2. Subtree is dupplicated lazily 
+// 3. clone the get node
+// 4. iterate over every node below and get('**').cloneMark() them.
+// => whenever change happens the matched node is dupplicated
+// 5. since child streams are constant the child collection can simply be dupplicated
+// 6. Any change will dupplicated full node: child collection, attr, prop...
+
+// The problem is link the parent of the node has on the original node
+// => Store the dupplicate and the original in the same VersionedNode object
+// => Durring iteration get knows which node to take the duplicate or the original 
+// => If the original node was allready cloned but not jet dupplicated -> the original 
+// reference should point directlly to the original of the original
+// => Get knows to take the original or the dupplicated based on a id that is in the root 
+// and is attached to the current get state mashine state
+// => get('**') will reach exactly the nodes that were present when the operation was 
+// attached (This is garantied by get)
+// ?? Attach different version to subtree -> add operation that changes version number??
+// ?? Clone tree and then attach it to the original ??
+// => root.node contains the current active version even after attachment
+
+// Make subtree readonly});
 ;define("src/utils", function(require, exports, module){exports.warn = function(message){
 	
 };});
