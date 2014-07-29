@@ -50,7 +50,7 @@ var interoperability = {
 // get('path') -> Type: Pointer
 
 // pointer.get(['path', 'or'])
-// pointer.filter();
+// pointer.has();
 // pointer.json(); // or read??
 // pointer.toml();
 // pointer.prop();
@@ -73,8 +73,6 @@ var interoperability = {
 // Immediate runs these directly but doesnt store found nodes
 // Except => detached roots
 // pointer.immediate();
-// pointer.prop('propname').immediate() -> returns result;
-// When not run used immediate filter for propname
 
 // apply operation op with timestamp to node n
 // 1. Check than n has never run this op -> otherwise skip all 
@@ -177,7 +175,7 @@ titles.each('[Title]',function(){
 	node.text(this.prop('Title'));
 });
 
-titles.filter(':single').each(function(){
+titles.has(':single').each(function(){
 	// ResultSet.Result.[Title]:single
 	// Returns a single instance - which may not be the first instance in the document
 	// !== titles.each(':single',function(){ this filters just before each is run
@@ -296,3 +294,28 @@ titles.each(function(){
 // The component can then access them. 
 // Is div / span inline seperator also component ??
 
+
+// clone difficulty
+// Startegy:
+// 1. get('...').clone();
+// 2. Subtree is dupplicated lazily 
+// 3. clone the get node
+// 4. iterate over every node below and get('**').cloneMark() them.
+// => whenever change happens the matched node is dupplicated
+// 5. since child streams are constant the child collection can simply be dupplicated
+// 6. Any change will dupplicated full node: child collection, attr, prop...
+
+// The problem is link the parent of the node has on the original node
+// => Store the dupplicate and the original in the same VersionedNode object
+// => Durring iteration get knows which node to take the duplicate or the original 
+// => If the original node was allready cloned but not jet dupplicated -> the original 
+// reference should point directlly to the original of the original
+// => Get knows to take the original or the dupplicated based on a id that is in the root 
+// and is attached to the current get state mashine state
+// => get('**') will reach exactly the nodes that were present when the operation was 
+// attached (This is garantied by get)
+// ?? Attach different version to subtree -> add operation that changes version number??
+// ?? Clone tree and then attach it to the original ??
+// => root.node contains the current active version even after attachment
+
+// Make subtree readonly
