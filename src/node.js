@@ -70,5 +70,72 @@ function Node(){
 
 
 function Root(){
+	var version;
+}
+
+
+function extend(original, param, mapping){
+	for(var key in param){
+		if (param.hasOwnProperty(key) && !original.hasOwnProperty(key)){
+			original[key] = mapping ? mapping(param[key]) : param[key];
+		}
+	}
+	return original;
+}
+
+function KeyValue(initial){
+	var store = initial || {};
+	
+	// The result of this constructor
+	var result =  function(key){
+		if(arguments.length > 1){
+			store[key] = arguments[1];
+		}
+		return store[key];
+	};
+
+	result.clone = function(){
+		return new KeyValue(extend({}, store));
+	};
+
+	result.extend = function(values){
+		extend(store, values);
+	};
+
+	return result;
+}
+
+function InternalKeyValue(initial){
 
 }
+
+function InternalChildren(){
+	
+}
+
+function InternalNode(){
+	this.attr = new InternalKeyValue();
+	this.prop = new InternalKeyValue();
+	this.path = new InternalKeyValue();
+	this.tags = new InternalKeyValue();
+	this.text = new InternalKeyValue();
+	this.children = new InternalChildren();
+}
+
+
+
+// Add Children from child.js 
+
+
+// build operation object
+//tree.get('').each(function(){}).then(...);
+//tree.get('').live(function(){}).then(...);
+
+// read in js, build tree 
+// get.json() -> Root
+
+
+
+
+
+

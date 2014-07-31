@@ -353,7 +353,29 @@ module.exports = curry;
 });
 ;define("src/emitter", function(require, exports, module){
 });
-;define("src/index", function(require, exports, module){var curry = require('./curry');});
+;define("src/get", function(require, exports, module){});
+;define("src/index", function(require, exports, module){var curry = require('./curry');
+
+/**
+ * Map Shim - https://gist.github.com/jed/1031568
+ */
+if(![].map)Array.prototype.map = function(func){
+	var self   = this;
+	var length = self.length;
+	var result = [];
+	for (var i = 0; i < length; i++){
+		if(i in self){
+			result[i] = func.call(
+				arguments[1], // an optional scope
+				self[i],
+				i,
+				self
+			);
+		}
+	}
+	result.length = length;
+	return result;
+};});
 ;define("src/input", function(require, exports, module){// https://github.com/ichord/Caret.js/blob/master/src/jquery.caret.js
 // http://stackoverflow.com/questions/6930578/get-cursor-or-text-position-in-pixels-for-input-element
 
@@ -478,51 +500,108 @@ function Node(){
 
 
 function Root(){
+	var version;
+}
 
-}});
-;define("src/query", function(require, exports, module){
-/**
- * Map Shim - https://gist.github.com/jed/1031568
- */
-if(![].map)Array.prototype.map = function(func){
-	var self   = this;
-	var length = self.length;
-	var result = [];
-	for (var i = 0; i < length; i++){
-		if(i in self){
-			result[i] = func.call(
-				arguments[1], // an optional scope
-				self[i],
-				i,
-				self
-			);
+
+function extend(original, param, mapping){
+	for(var key in param){
+		if (param.hasOwnProperty(key) && !original.hasOwnProperty(key)){
+			original[key] = mapping ? mapping(param[key]) : param[key];
 		}
 	}
-	result.length = length;
-	return result;
-};
+	return original;
+}
 
+function KeyValue(initial){
+	var store = initial || {};
+	
+	// The result of this constructor
+	var result =  function(key){
+		if(arguments.length > 1){
+			store[key] = arguments[1];
+		}
+		return store[key];
+	};
+
+	result.clone = function(){
+		return new KeyValue(extend({}, store));
+	};
+
+	result.extend = function(values){
+		extend(store, values);
+	};
+
+	return result;
+}
+
+function InternalKeyValue(initial){
+
+}
+
+function InternalChildren(){
+	
+}
+
+function InternalNode(){
+	this.attr = new InternalKeyValue();
+	this.prop = new InternalKeyValue();
+	this.path = new InternalKeyValue();
+	this.tags = new InternalKeyValue();
+	this.text = new InternalKeyValue();
+	this.children = new InternalChildren();
+}
+
+
+
+// Add Children from child.js 
+
+
+// build operation object
+//tree.get('').each(function(){}).then(...);
+//tree.get('').live(function(){}).then(...);
+
+// read in js, build tree 
+// get.json() -> Root
+
+
+
+
+
+
+});
+;define("src/parse", function(require, exports, module){/**
+ * A parsable stream of tokens
+ * @constructor
+ */
 function Parsable(original){
 	this.original = original;
 }
 
+/**
+ * Create a stream of tokens from a regex
+ */
 Parsable.tokenize = function(string, regex){
-	var pos = 0, line = 0;
+	var pos = 0;
 	return new Parsable(string.match(regex).map(function(token){
 		var result = {
 			data: token, 
-			line: line, 
 			pos: pos, 
-			assert: function(expected, check){
+			assert: function(expected, returnResult){
+				var token = this.data;
 				if(expected === 'name'){
-					if('#:[]=!<>.*{}'.indexOf(token[0])===-1)return true;
-				}
-				if(this.data === expected ){
+					if(token.name || '#:[]=!<>.*{}'.indexOf(token[0])===-1){
+						return true;
+					}
+				}else if(token === expected ){
 					return true;
 				}
-				if(check)return false;
-				var msg = 'Expected "'+expected+'" but found "'+this.data+'"';
-				throw new Error(msg+' line:'+this.line+' column:'+this.pos);
+				if(returnResult)return false;
+				throw new Error([
+					'Unexpected symbol "'+token+'" ',
+					'expected "'+expected+'" ',
+					'at column: '+this.pos
+				].join(''));
 			}
 		};
 		pos += token.length;
@@ -530,155 +609,210 @@ Parsable.tokenize = function(string, regex){
 	}));
 };
 
+/**
+ * Map a stream of tokens.
+ */
 Parsable.prototype.parse = function(each){
-	var status, state = 0;
-	return new Parsable(this.original.map(function(token, i){
+	var current, state = 0;
+	var parsable = new Parsable(this.original.map(function(token, i){
 		if(!token)return token;
 		var removed = false;
 		var actions = {
-			addState: function(s){ state += s; },
+			// Modify current state
 			setState: function(s){ state = s; },
-			addName: function(value){
-				if(status)removed=true;
-				else status = {};
-				if(!status.name)status.name = [];
-				status.name.push(value);
-				return status;
-			},
-			reset: function(){
-				//var oldstatus = status;
-				status = null;
-				//return oldstatus;
-			},
-			expected: function(expected, check){token.assert(expected, check);},
-			remove:   function(){removed=true;}, // deprecated
-			attached: function(key, value, noRemove){removed=true;}
+			setCurrent: function(c){ current = c; },
+			// Remove the current token from the parsable stream
+			remove: function(){ removed = true; },
+			// Validate the type of the current token
+			expected: function(expected, returnResult){
+				return token.assert(expected, returnResult);
+			}
 		};
-		var result  = each.call(actions, token.data, state, status) || token.data;
-		return removed ? null : {data: result, line: token.line, pos: token.pos, assert: token.assert};
+		var result = each.call(actions, token.data, state, current);
+		return removed ? null : {
+			data: result, 
+			pos: token.pos, 
+			assert: token.assert
+		};
 	}));
+	if(state > 0)throw new Error('Unexpected ending.');
+	return parsable;
 };
 
-function foldNames2(string){
-	var state = 0, current;
-	// 0 -> current may be falsy or the current name
-	// 1 -> {{
-	// 2 -> {{temp
-	// 3 -> {{temp}
-	// 4 -> {{temp}}
-	return tokenize(string).parse(function(token, state, current){
+exports.parse = function(string){
+
+	var parsed = Parsable.tokenize(string,
+		/\#|\:|\[|\]|[\=\!<>]+|\{|\}|\*+|\.|[^\#\:\[\]\=\!<>\{\}\*\.]+/g
+
+	).parse(function(token, state, current){
+
+		var name;
+
+		// 0 -> current may be falsy or the current name array
+		// 1 -> {{
+		// 2 -> {{temp
+		// 3 -> {{temp}
+		// 4 -> {{temp}}
+		
 		switch (state) {
     		case 0:
     			if(token[0] === '*'){
-					return this.addName({wildcard: token.length});
-				}else if(token !== '{'){
-					if(this.expected('name', true)){
-						return this.addName({constant: token});
-					}
-					console.log("!!!!!!!!!!!!!!!!!");
-					console.log(token);
+    				name = {wildcard: token.length};
+    				break;
+				}else if(this.expected('name', true)){
+					name = {constant: token};
 					break;
+				}else if(token === '{'){
+    				this.setState(1);
+				}else{
+					this.setCurrent(null);
+					return token;
 				}
-			/* falls through */
+				break;
     		case 1:
     			this.expected('{');
-    			this.addState(1);
+    			this.setState(2);
     			break;
     		case 2:
     			this.expected('name');
-    			this.addName({breakets: token});
-    			this.addState(1);
+    			name = {breakets: token};
+    			this.setState(3);
     			break;
     		case 3:
     			this.expected('}');
-    			this.addState(1);
+    			this.setState(4);
     			break;
     		case 4:
     			this.expected('}');
     			this.setState(0);
     			break;
     	}
-	});
-}
+    	
+    	if(!current){
+    		this.setCurrent(current = (name ? [name] : []));
+    		return {name: current};
+    	}else{
+    		this.remove();
+    		if(name)current.push(name);
+    	}
 
-function tokenize(string){
-	var r = /\#|\:|\[|\]|[\=\!<>]+|\{|\}|\*+|\.|[^\#\:\[\]\=\!<>\{\}\*\.]+/g;
-	return Parsable.tokenize(string, r);
-}
+	}).parse(function(token, state, current){
 
-exports.parse = function(string){
-	var state = 0, current, result = [[]];
-	// 0 -> default
-	// 1 -> name after #
-	// 2 -> name after :
-	// 3 -> possibly [ after :
-	// 4 -> allready found [
-	// 5 -> allready found [name
-	// 6 -> allready found [name=
-	// 7 -> expect ]
+		var newCurrent;
 
-	foldNames2(string).parse(function(token){
-		if(!token || token === '.')return;
+		// -1 -> possibly [ after :
+		// 0  -> default
+		// 1  -> name after #
+		// 2  -> name after :
+		// 3  -> allready found [
+		// 4  -> allready found [name
+		// 5  -> allready found [name=
+		// 6  -> expect ]
 
-		//console.log(JSON.stringify(token));
-
-		if(state === 5){
-			if('=!<>'.indexOf(token[0])!==-1){
-				current.assert = token;
-				state = 6;
-			}else{
-				if(token !== ']')this.expected(']');
-				state = 0;
-			}
-			return this.remove();
-		}else if(state === 0 || state === 3){
-			console.log(token);
-			if(token.name){
-				return {type: '_', name: token.name};
-			}else if(token === '#'){
-				state = 1;
-			}else if(token === ':'){
-				state = 2;
-			}else if(token === '['){
-				if(state === 3){
-					state = 4;
-					return this.remove();
-				}else{
-					state = 4;
+		switch (state) {
+			case -1:
+				if(token === '['){
+					this.setState(3);
+					break;
 				}
-			}else{
-				this.expected('#, : or [');
-			}
-			return (current = {type: token});
-		}else if(state === 1 || state === 2){
-			if(!token.name)this.expected('name');
-			current.name = token.name;
-			state = (state === 1 ? 0 : 3);
-			this.remove();
-		}else if(state === 4 || state === 6){
-			if(!token.name)this.expected('name');
-			var key = (state === 4 ? 'prop' : 'value');
-			current[key] = token.name;
-			this.remove();
-			state+=1;
-		}else if(state === 7){
-			if(token !== ']')this.expected(']');
-			state = 0;
-			return this.remove();
+			/* falls through */
+			case 0:
+				if(token.name){
+					newCurrent = {type: '_', name: token.name};
+				}else{
+					switch (token) {
+						case '.':
+							return token;
+						case '#':
+							this.setState(1);
+							break;
+						case ':':
+							this.setState(2);
+							break;
+						case '[':
+							this.setState(3);
+							break;
+						default:
+							this.expected('#, : or [');
+					}
+					newCurrent = {type: token};
+				}
+				break;
+			case 1:
+			case 2:
+				this.expected('name');
+				current.name = token.name;
+				this.setState(state === 1 ? 0 : -1);
+				break;
+			case 3:
+				this.expected('name');
+				current.prop = token.name;
+				this.setState(4);
+				break;
+			case 4:
+				if('=!<>'.indexOf(token[0])!==-1){
+					current.assert = token;
+					this.setState(5);
+				}else{
+					this.expected(']');
+					this.setState(0);
+				}
+				break;
+			case 5:
+				this.expected('name');
+				current.value = token.name;
+				this.setState(6);
+				break;
+			case 6:
+				this.expected(']');
+				this.setState(0);
+				break;
 		}
-	}).original.map(function(token){
-		if(token && token.data === '.'){
-			result.push([]);
-		}else if(token){
-			result[result.length-1].push(token.data);
+
+		if(newCurrent){
+			this.setCurrent(newCurrent);
+    		return newCurrent;
+		}else{
+			this.remove();
 		}
 	});
-	if(state!==0){
-		throw new Error('Unexpected ending.');
-	}
 
+	// 
+
+	var result = [[]];
+
+	parsed.parse(function(token){
+		if(token === '.'){
+			result.push([]);
+		}else{
+			result[result.length-1].push(token);
+		}
+	});
+	
 	return result;
-};});
+};
+});
+;define("src/query", function(require, exports, module){
+
+
+/**
+ * A query containing multiple selector traces.
+ * @constructor
+ */
+function Query(parameters){
+
+}
+
+Query.prototype.concat = function(parameters, has){
+
+};
+
+Query.prototype.toStateMachine = function(){
+
+};
+
+// plugin system
+});
 ;define("src/state", function(require, exports, module){// ** This file describes the state machine that underlies runjs selectors. They
 // are specified in a declarative manner. **
 
@@ -1484,6 +1618,9 @@ titles.each(function(){
 // If a component is added to a root so are the global path matchers
 // The component can then access them. 
 // Is div / span inline seperator also component ??
+
+
+
 
 */
 
