@@ -179,9 +179,9 @@ Children.prototype.detach = function(index, length){
 	return mid;
 };
 
-Children.Stream = Stream;
-
-module.exports = Children;
+module.exports = Stream;
+Stream.Append = AppendStream;
+Stream.Sub = SubStream;
 
 
 
