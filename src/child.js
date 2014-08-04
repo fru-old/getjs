@@ -1,4 +1,156 @@
 
+/**
+ * Global id generator to return ascending ids. 
+ */
+var ID = {
+	current: 1,
+	ascending: function(){
+		return ID.current++;
+	} 
+};
+
+/**
+ * 
+ */
+function Timestamp(){
+	this.major = ID.ascending();
+	this.minor = 0;
+}
+
+Timestamp.prototype.next = function(){
+	var result = new Timestamp();
+	result.major = this.major;
+	result.minor = ID.ascending();
+	return result;
+};
+
+Timestamp.prototype.less = function(other){
+	if(this.major < other.major)return true;
+	return this.major === other.major && this.minor < other.minor;
+};
+
+/**
+ *
+ */
+function InternalNode(){
+	// Operations that still needs to run on the nodes in this stream during the
+	// iteration of this stream with next
+	this.pending = []; // {timestamp, operation}
+	// Stream of pointers to nodes
+	this.pointer = new ArrayStream();
+}
+
+InternalNode.prototype.resolveNode = function(timestamp){
+
+};
+
+InternalNode.prototype.addOperation = function(timestamp, operation){
+ // operation is function that returns child operation or falsy 
+};
+
+InternalNode.prototype.clone = function(){
+
+};
+
+/**
+ *
+ */
+function Pointer(initial){
+	// This contains the diffrent versions of this wrapped node
+	this.versions = {
+		0: initial
+	};
+	// Current version
+	this.current = 0;
+	// Timestamp of the last operation
+	this.timestamp = null;
+};
+
+Pointer.prototype.beforeChange = function(){
+	var current  = this.current;
+	var versions = this.versions;
+	if(typeof versions[current] === 'number'){
+		versions[current] = versions[versions[current]].clone();
+	}
+	return versions[current];
+};
+
+Pointer.prototype.issueCloning = function(){
+	var current  = this.current;
+	var versions = this.versions;
+	var target   = current;
+	if(typeof versions[current] === 'number'){
+		target = versions[current];
+	}
+	var result = new Pointer();
+	result.versions = this.versions;
+	result.current  = ID.ascending();
+	result.versions[result.current] = target;
+	return result;
+};
+
+
+Pointer.prototype.next = function(assertions, timestamp, each, done){
+	function unwrap(err, i, element, ended){
+		// unwrap pointer
+	}
+	this.pointer.next(index, assertions, offset, unwrap);
+};
+
+Pointer.prototype.clear = function(){
+	// Recurivly replaces streams and childstreams with the result of 
+	// resolving to a specific version
+	// {target: [empty stream without pending], result: }
+};
+
+Pointer.prototype.clone = function(){
+	// Recurivly replaces streams and childstreams with the result of 
+	// issueCloning
+	// {target: , result: }
+};
+
+Pointer.prototype.concat = function(nodes){
+
+};
+
+Pointer.prototype.insert = function(index, nodes){
+
+};
+
+Pointer.prototype.detach = function(index){
+	// {target: , result: }
+};
+
+/**
+ * Iterate over each element that may match the assertions beginning at the
+ * start index.
+ * @param {function} each - called for every element found
+ * @param {DNF|Assertion} assertions - assertion that may filter elements
+ * @param {number} start  - starting index where the iteration begins
+ * @param {function} done - called when no more elements can be found.
+ */
+Stream.prototype.each = function(each, assertions, start, done){
+	var self  = this;
+
+	self.next(start||0, assertions, 0, function(err, index, element, ended){
+		if(err)return done(err);
+		else if(ended) return done && done();	
+		
+		each.call(index, element, function(){
+			self.each(each, assertions, index+1, done);
+		});
+	});
+};
+
+// detach, insert
+
+Stream.prototype.insert()
+
+
+
+
+
+
 // A static collection of elements which can be extended to serve data from ajax
 // and other asynchronous sources. A stream does not provide a mechanism to
 // model mutable or changing data. Hence any call to a stream with the same
@@ -11,7 +163,7 @@
  * @param {Array} array      - array of elements to serve
  * @param {function=} mapper - all elements are lazily mapped with this function
  */
-function Stream(array, mapper){
+function ArrayStream(array, mapper){
 	this.elements = array || [];
 	this.mapper = mapper;
 }
@@ -42,28 +194,6 @@ Stream.prototype.next = function(minindex, assertions, done){
 //     next();
 // }, assertions);
 // ```
-
-/**
- * Iterate over each element that may match the assertions beginning at the
- * start index.
- * @param {function} each - called for every element found
- * @param {DNF|Assertion} assertions - assertion that may filter elements
- * @param {number} start  - starting index where the iteration begins
- * @param {function} done - called when no more elements can be found.
- */
-Stream.prototype.each = function(each, assertions, start, done){
-	var self  = this;
-
-	self.next(start||0, assertions, function(err, index, element, ended){
-		if(err)return done(err);
-		else if(ended) return done && done();	
-		
-		each(index, element, function(){
-			self.each(each, assertions, index+1, done);
-		});
-	});
-};
-
 
 /**
  * Next element at index and offset all indexes by a given number.

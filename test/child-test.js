@@ -1,4 +1,4 @@
-var Children = run.require('src/child');
+var Steam = run.require('src/child');
 
 function nextToArray(children, done, array){
 	if(!array)array = [];
