@@ -9,182 +9,70 @@ var ID = {
 	} 
 };
 
-/**
- * 
- */
-function Timestamp(){
-	this.major = ID.ascending();
-	this.minor = 0;
+
+// Context 
+function DoneCounter(done){
+	var count = 0;
+	this.start = function(){
+		count++;
+	};
+	this.close = function(){
+		count--;
+		if(count === 0){
+			counter = -1;
+			done();
+		}
+	};
+	this.expired = function(){
+		return count < 0;
+	};
 }
 
-Timestamp.prototype.next = function(){
-	var result = new Timestamp();
-	result.major = this.major;
-	result.minor = ID.ascending();
-	return result;
-};
+// Run operation
+function execute(child, operation, done){
 
-Timestamp.prototype.similar = function(other){
-	return this.major === other.major
-};
+} 
 
-Timestamp.prototype.less = function(other){
-	if(this.major < other.major)return true;
-	return this.major === other.major && this.minor < other.minor;
-};
+// Get child at specific version and timestamp; run operation <= timestamp
+function resolve(parent, child, timestamp, done){
+	// execute any operation on child
+}
 
-/**
- *
- */
-function Wrapper(initial, children, root){
-	// This contains the diffrent versions of this wrapped node
-	this.versions = {};
-	// Current version
-	this.current = ID.ascending();
-
-	this.versions[this.current] = {
-		children: children || new ArrayStream(), 
-		node: initial
-	};
-	// Timestamp of the last operation
-	this.timestamp = new Timestamp();
-	// Operations that still need to run on child nodes
-	this.pending = {
-		minor: [], // {timestamp, operation}
-		major: []  // {timestamp, operation}
-	}; 
-
-	this.root = root || false;
-};
-
-/**
- * Called when an operation is currently running which addes a new operation to
- * be run locally
- */
-Wrapper.prototype.splitOperation = function(operation, index){
-	operation = operation(this, index);
-	this.pending.minor.push({
-		timestamp: this.timestamp.next(),
-		operation: operation
-	});
-};
-
-/**
- * Called to add an operation initally to the root and when a specific operation 
- * was found by resolved from pending and needs to be applied.
- */
-Wrapper.prototype.applyOperation = function(operation, index, timestamp){
-	if(!this.timestamp.less(timestamp))return;
-	operation = operation(this, index);
-
-	if(this.root){
-		this.pending.major.push({
-			timestamp: new Timestamp(),
-			operation: operation
-		});
-	}else{
-		if(!timestamp)timestamp = new Timestamp();
-		var minor = 
-	}
-
-
-	// run an operation on this node
+// Called after all matches may have been resolved. This validates the
+// assertions of the operations <= timestamp and removes the finished.
+function cleanup(parent, timestamp, remove){
 	
+}
 
-	if(!operation)return;
 
-	// add operation to pending
-	// correct on initial apply -> for cascading operations not
-	if(minor){
-		
-	}else{
-		this.pending.major.push({
-			timestamp: new Timestamp(),
-			operation: operation
-		});
-	}
-};
 
-Wrapper.prototype.
 
-Wrapper.prototype.isNotAfter = function(timestamp){
-	return !this.timestamp || !timestamp.less(this.timestamp);
-};
 
-Wrapper.prototype.beforeChange = function(){
-	var current  = this.current;
-	var versions = this.versions;
-	if(typeof versions[current] === 'number'){
-		var old = versions[versions[current]];
-		versions[current] = {
-			children: old.children, 
-			node: old.node.clone()
-		};
-	}
-	return versions[current];
-};
-
-function initalizeCloning(wrapper){
-	var current  = wrapper.current;
-	var versions = wrapper.versions;
-	var target   = current;
-	if(typeof versions[current] === 'number'){
-		target = versions[current];
-	}
-	var result = new Wrapper();
-	result.versions = wrapper.versions;
-	result.current  = ID.ascending();
-	result.versions[result.current] = target;
-	return result;
-};
-
-Wrapper.prototype.recursiveClone = function(){
-
-};
+// The context wraps the child stream and nodedata accesss to support the 
+// following features
+// - being notified before nodedata or the child stream is changed to clone the
+//   node if this is needed
+// - expiring the context when done counting
+// - No default interceptors
+// - hidden nodes & readonly
+// - clone already iterates the tree as an operation on all recursive children
+// Last:
+// - mapping / intercepting the nodes methods; this may be done by intercepting the context
 
 /**
- * Used when clearing operations
+ * Wraps access to a node 
  */
-Wrapper.prototype.recursiveResolve = function(){
+function Context(node, count){
 
-};
+	// Immediate
+	//root() // bool
+	//set(type, key, value)
+	//get(type, key)
+	//detach -> context
+	//...
 
-
-
-
-
-
-
-
-
-Pointer.prototype.next = function(assertions, timestamp, each, done){
-	function unwrap(err, i, element, ended){
-		element = element.versions[element.current];
-		done(err, i, element, ended);
-	}
-	this.pointer.next(index, assertions, offset, unwrap);
-};
-
-Pointer.prototype.clear = function(){
-	// Recurivly replaces streams and childstreams with the result of 
-	// resolving to a specific version
-	// {target: [empty stream without pending], result: }
-};
-
-Pointer.prototype.clone = function(){
-	// Recurivly replaces streams and childstreams with the result of 
-	// issueCloning
-	// {target: , result: }
-};
-
-Pointer.prototype.concat = function(nodes){
-
-};
-
-Pointer.prototype.insert = function(index, nodes){
-
-};
-
-Pointer.prototype.detach = function(index){
-	// {target: , result: }
-};
+	// Asynch
+	//next(start, assertion, done)
+	//find(start, assertion, each, done)
+	//exec(operation, done) // never expires, throws if not detached
+}
