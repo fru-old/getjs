@@ -39,6 +39,7 @@ Node.Data = function(){
 	this.path = new Node.KeyValue();
 	this.tags = new Node.KeyValue();
 	this.text = new Node.KeyValue();
+	this.mark = new Node.KeyValue();
 };
 
 Node.KeyValue = function(){
@@ -48,6 +49,9 @@ Node.KeyValue = function(){
 	};
 	this.get = function(key){
 		return values[key];
+	};
+	this.clone = function(raw){
+
 	};
 };
 
@@ -139,6 +143,7 @@ function Context(node, meta, count){
 	//root() // bool
 	//set(type, key, value)
 	//get(type, key)
+	//all(type) clone raw
 	//detach -> context
 	//...
 
