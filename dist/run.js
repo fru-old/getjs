@@ -63,245 +63,6 @@ var require = run.require = function(id) {
 	
 	return modules[id];
 };
-;define("src/child", function(require, exports, module){
-// A static collection of elements which can be extended to serve data from ajax
-// and other asynchronous sources. A stream does not provide a mechanism to
-// model mutable or changing data. Hence any call to a stream with the same
-// arguments must always return the same result. This initial implementation of
-// streams serves an array of elements.
-
-function Children(){
-	// Operations that still needs to run on the nodes in this stream during the
-	// iteration of this stream with next
-	this.pending = []; 
-	// Stream of wrapped nodes
-	this.stream  = new ArrayStream();
-}
-
-function Wrapper(original){
-	// This contains the diffrent versions of this wrapped node
-	this.versions = {
-		0: original
-	};
-}
-
-Children.prototype.next = function(index, assertions, offset, done){
-	throw new Error("Not implemented.");
-};
-
-Children.prototype.clear = function(){
-	this.
-
-	// {target: , result: }
-};
-
-Children.prototype.clone = function(){
-	// {target: , result: }
-};
-
-Children.prototype.concat = function(nodes){
-
-};
-
-Children.prototype.insert = function(index, nodes){
-
-};
-
-Children.prototype.detach = function(index){
-	// {target: , result: }
-};
-
-/**
- * Iterate over each element that may match the assertions beginning at the
- * start index.
- * @param {function} each - called for every element found
- * @param {DNF|Assertion} assertions - assertion that may filter elements
- * @param {number} start  - starting index where the iteration begins
- * @param {function} done - called when no more elements can be found.
- */
-Stream.prototype.each = function(each, assertions, start, done){
-	var self  = this;
-
-	self.next(start||0, assertions, 0, function(err, index, element, ended){
-		if(err)return done(err);
-		else if(ended) return done && done();	
-		
-		each.call(index, element, function(){
-			self.each(each, assertions, index+1, done);
-		});
-	});
-};
-
-// detach, insert
-
-Stream.prototype.insert()
-
-
-
-
-
-
-
-
-/**
- * A possibly infinite stream of elements.
- * @constructor
- * @param {Array} array      - array of elements to serve
- * @param {function=} mapper - all elements are lazily mapped with this function
- */
-function ArrayStream(array, mapper){
-	this.elements = array || [];
-	this.mapper = mapper;
-}
-
-/**
- * Asynchronous, return the next element that may match the assertions. This may
- * be overrided to do more concrete enhancements that take the assertions into
- * account while traversing.
- * @param {number} minindex          - the result must be at least this
- * @param {DNF|Assertion} assertions - may be used to improve iteration
- * @param {function} done            - invoked with the result of the method
- */
-Stream.prototype.next = function(minindex, assertions, done){
-	if(minindex >= this.elements.length){
-		done(null, minindex, null, {length: this.elements.length});
-	}else{
-		var element = this.elements[minindex];
-		if(this.mapper)element = this.mapper(element);
-		done(null, minindex, element);
-	}
-};
-
-// This can be used to iterate over the indexes in the stream. Assertions may be
-// used by a concrete implementation to enhance the iteration.
-// ```
-// stream.each(function(index, element, next){
-//     // use index and element
-//     next();
-// }, assertions);
-// ```
-
-/**
- * Next element at index and offset all indexes by a given number.
- * @param {Stream|Children} target   - 
- * @param {function} cb   - 
- * @param {number} index  - 
- * @param {DNF|Assertion} assertions -
- * @param {number} offset - 
- */
-function next(target, cb, index, assertions, offset){
-	if(!offset)offset = 0;
-	function offsetCb(err, i, element, ended){
-		if(ended)ended.length -= offset;
-		cb(err, i - offset, element, ended);
-	}
-	target.next(index + offset, assertions, offsetCb);
-}
-
-/**
- * Build a stream that is a concatination of two existing streams.
- * @constructor
- */
-function AppendStream(original, stream){
-
-	this.next = function(minindex, assertions, done){
-		next(original, function(err, i, element, ended){
-			if(err)return done(err);
-			if(!ended){
-				done(err, i, element, null);
-			}else{
-				next(stream, done, minindex, assertions, -ended.length);
-			}
-		}, minindex, assertions);
-	};
-}
-
-/**
- * Build a substream of an existing stream.
- * @constructor
- */
-function SubStream(original, index, count, fill){
-
-	this.next = function(minindex, assertions, done){
-		if(minindex >= count && fill){
-			return done(null, null, null, {length: count});
-		}
-		next(original, function(err, i, element, ended){
-			if(err)return done(err);
-			if((!ended || fill) && i >= count){
-				done(err, null, null, {length: count});
-			}else{
-				if(fill && ended){
-					done(err, i, undefined, null);
-				}else{
-					done(err, i, element, ended);
-				}
-			}
-		}, minindex, assertions, index);
-	};
-}
-
-var infity = Number.POSITIVE_INFINITY;
-
-/**
- * Childreen class that contains a collection of nodes and exposes all basic
- * transformations that can be executed on the collection.
- */
-function Children(initial){
-	if(!(initial instanceof Stream)){
-		initial = null;
-	}
-	this.stream = initial || new Stream();
-}
-
-Children.prototype = new Stream();
-
-Children.prototype.get = function(index, done){
-	return this.stream.next(index, null, function(){
-		
-	});
-};
-
-Children.prototype.next = function(minindex, assertions, done){
-	return this.stream.next(minindex, assertions, done);
-};
-
-Children.prototype.each = function(each, assertions, start, done){
-	return this.stream.each(each, assertions, start, done);
-};
-
-Children.prototype.append = function(element){
-	if(!(element instanceof Stream)){
-		element = new Stream([element]);
-	}
-	this.stream = new AppendStream(this.stream, element);
-};
-
-Children.prototype.insert = function(index, element){
-	if(!(element instanceof Stream)){
-		element = new Stream([element]);
-	}
-	var head = new SubStream(this.stream, 0, index, true);
-	var tail = new SubStream(this.stream, index, infity);
-	tail = new AppendStream(element, tail);
-	this.stream = new AppendStream(head, tail);
-};
-
-Children.prototype.detach = function(index, length){
-	var head = new SubStream(this.stream, 0, index, true);
-	var tail = new SubStream(this.stream, index+length, infity);
-	var mid  = new SubStream(this.stream, index, length);
-	this.stream = new AppendStream(head, tail);
-	return mid;
-};
-
-module.exports = Stream;
-Stream.Append = AppendStream;
-Stream.Sub = SubStream;
-
-
-
-});
 ;define("src/curry", function(require, exports, module){
 
 // Identify the underscore variable
@@ -364,71 +125,260 @@ function curry(func, enableUncurry){
 module.exports = curry;
 
 });
-;define("src/node", function(require, exports, module){// tags.index = [0,4,1]
-// tags.name = 'xyz'
-// tags.root = true
+;define("src/index", function(require, exports, module){// Define get
+});
+;define("src/node", function(require, exports, module){var Stream = require('./stream');
 
-// prop.1 = 1
+/**
+ * Global id generator to return ascending ids. 
+ */
+var ID = {
+	current: 1,
+	ascending: function(){
+		return ID.current++;
+	} 
+};
 
-var Stream = require('./child');
+/**
+ * Node instance
+ */
+function Node(nodedata, children, isRoot){
+	this.children  = children || new Stream.Array();
+	this.nodedata  = nodedata || new Node.DefaultData();
+	// Timestamp of the last operation
+	this.timestamp = ID.ascending();
+	// Still need to run on children {timestamp, operation}
+	this.pending   = [];
+	this.detached  = isRoot || false;
+	this.creation  = ID.ascending();
+}
 
-get.json = function(object, options){
-	var flatten = (options||{}).flatten;
-
-	var root = makenode(object);
-	if(!root){
-		throw new Error('Expected toplevel array or object.');
-	}
-	root.tags.root = true;
-	return root;
-
-	function makenode(object){
-		var result = new InternalNode();
-		var children = [];
-		function iterator(index, found, tag){
-			var node = makenode(found);
-			if(node){
-				node.tags[tag] = index;
-				children.push(node);
-			}else{
-				result.prop[index] = found;
-			}
+Node.prototype.onchange = function(){
+	if(this.cloned){
+		var data = {}, pending = [];
+		for(var i in this.nodedata){
+			data[i] = this.nodedata[i].clone();
 		}
-
-		if(typeof object.length === 'number'){
-			result.tags.array = true;
-			arraysearch(object, [], iterator);
-		}else if(object.constructor === Object){
-			objectsearch(object, iterator);
-		}else{
-			return null;
+		for(var j in this.pending){
+			pending[j] = this.pending[j];
 		}
-
-		result.children = new Stream(children);
-		return result;
-	}
-
-	function objectsearch(object, cb){
-		for(var i in object){
-			if(object.hasOwnProperty(i)){
-				cb(i, object[i], 'name');
-			}
-		}
-	}
-
-	function arraysearch(array, index, cb){
-		for(var i = 0; i < array.length; i++){
-			var nindex = index.slice(0).push(i);
-			if(flatten && array[i].length){
-				arraysearch(array[i], nindex, cb);
-			}else{
-				cb(nindex, array[i], 'index');
-			}
-		}
+		this.nodedata = data;
+		this.cloned   = false;
 	}
 };
 
-});
+Node.KeyValue = function(initial){
+	var values = initial || {};
+	this.set = function(key, value){
+		return (values[key] = value);
+	};
+	this.get = function(key){
+		return values[key];
+	};
+	this.clone = function(raw){
+		var result = {};
+		for(var i in values){
+			result[i] = values[i];
+		}
+		return raw ? result : new Node.KeyValue(result);
+	};
+};
+
+Node.DefaultData = function(){
+	this.attr = new Node.KeyValue();
+	this.prop = new Node.KeyValue();
+	this.path = new Node.KeyValue();
+	this.tags = new Node.KeyValue();
+	this.text = new Node.KeyValue();
+	this.mark = new Node.KeyValue();
+};
+
+/**
+ * Counts when the done callback should be invoked.
+ */
+function DoneCounter(done){
+	var count = 0;
+	this.start = function(){
+		count++;
+	};
+	this.close = function(){
+		if(count>0)count--;
+		if(count === 0){
+			counter = -1;
+			done();
+		}
+	};
+	this.branch = function(done){
+		this.start();
+		return new DoneCounter(function(){
+			done();
+			this.close();
+		});
+	};
+	this.expired = function(){
+		return count < 0;
+	};
+}
+
+function cloning(node, root){
+	// Both nodes need to be marked for cloning
+	node.cloned = true;
+
+	var clone = new Node(node.nodedata, node.children, root);
+	clone.pending = node.pending;
+	clone.cloned  = true;
+	return clone;
+}
+
+// Run operation
+function execute(node, operation, timestamp, done){
+	var version = node.version();
+	var counter = new DoneCounter(done);
+	counter.start();
+	if(version.timestamp < timestamp){
+		version.timestamp = timestamp;
+		var context = new Context(node, counter);
+		var result  = operation(context, node);
+		if(result){
+			result.timestamp = timestamp;
+			version.pending.push(result);
+		}
+	}
+	counter.close();
+}
+
+// Get child at specific version and timestamp; run operation <= timestamp
+function resolve(parent, child, timestamp, done){
+	parent = parent.version();
+	(function recurse(i){
+		var index = parent.pending[i] || {};
+		var ended = parent.pending.length <= i;
+		var isold = index.timestamp > timestamp;
+		if(ended || isold){
+			done();
+		}else{
+			execute(child, index.operation, index.timestamp, function(){
+				recurse(i+1);
+			});
+		}
+	}(0));
+}
+
+// Called after all matches may have been resolved. This validates the
+// assertions of the operations <= timestamp and removes the finished.
+function cleanup(parent, timestamp){
+	parent = parent.version();
+	while(parent.pending.length > 0){
+		if(parent.pending[0].timestamp > timestamp)break;
+		parent.pending.shift();
+	}
+}
+
+function expired(){
+	throw new Error('This reference has expired.');
+}
+
+
+// The context wraps the child stream and nodedata access to support the 
+// following features
+// - being notified before nodedata or the child stream is changed to clone the
+//   node if this is needed
+// - expiring the context when done counting
+// - No default interceptors
+// - hidden nodes & read-only
+// - clone already iterates the tree as an operation on all recursive children
+// Last:
+// - mapping / intercepting the nodes methods; this may be done by intercepting the context
+
+/**
+ * Wraps access to a node 
+ */
+function Context(node, count){
+
+	/**
+	 *
+	 */
+	this.clone = function(){
+		if(count.expired())expired();
+		var root;
+		function doClone(context, node){
+			root = cloning(node, !root);
+			return {operation: doClone};
+		}
+		execute(node, doClone, ID.ascending(), function(){});
+		// On this operation execute MUST return immediately
+		return new Root(root);
+	};
+
+	this.isRoot = function(){
+		if(count.expired())expired();
+		return node.detached;
+	};
+
+	this.set = function(type, key, value){
+		if(count.expired())expired();
+		if(!node.nodedata[type])throw new Error('Unknown type.');
+		return node.nodedata[type].set(key, value);
+	};
+
+	this.get = function(type, key){
+		if(count.expired())expired();
+		if(!node.nodedata[type])throw new Error('Unknown type.');
+		return node.nodedata[type].get(key);
+	};
+
+	this.all = function(type){
+		if(count.expired())expired();
+		if(!node.nodedata[type])throw new Error('Unknown type.');
+		return node.nodedata[type].clone(true);
+	};
+
+	this.next = function(start, assertion, done){
+		if(count.expired())expired();
+
+	};
+
+	this.find = function(start, assertion, each, done){
+		if(count.expired())expired();
+
+	};
+
+}
+
+// TODO
+// 1: simple: get, set & next
+// 2: hidden nodes & infinite nodes
+
+// Immediate
+//root() // bool
+//set(type, key, value)
+//get(type, key)
+//all(type) clone raw
+//detach -> context
+//...
+
+// Async
+//next(start, assertion, done)
+//find(start, assertion, each, done)
+
+//tags.readonly
+//tags.infinite
+
+Node.Root = function(node){
+	this.execute = function(operation, done){
+		if(!node.detached)expired();
+		execute(node, operation, ID.ascending(), done);
+	};
+};
+
+function Roots(stream){
+	this.prependTo = function(node, index){
+		
+	};
+	this.appendTo = function(node){
+
+	};
+}});
 ;define("src/parse", function(require, exports, module){/**
  * A parsable stream of tokens
  * @constructor
@@ -651,6 +601,7 @@ exports.parse = function(string){
 	return result;
 };
 });
+;define("src/query", function(require, exports, module){});
 ;define("src/state", function(require, exports, module){// ** This file describes the state machine that underlies runjs selectors. They
 // are specified in a declarative manner. **
 
@@ -845,5 +796,272 @@ DNF.prototype.transition = function(node){
 module.exports.States = States;
 module.exports.DNF = DNF;
 module.exports.Assertion = Assertion;});
+;define("src/static", function(require, exports, module){// tags.index = [0,4,1]
+// tags.name = 'xyz'
+// tags.root = true
+
+// prop.1 = 1
+
+var Stream = require('./child');
+
+get.json = function(object, options){
+	var flatten = (options||{}).flatten;
+
+	var root = makenode(object);
+	if(!root){
+		throw new Error('Expected toplevel array or object.');
+	}
+	root.tags.root = true;
+	return root;
+
+	function makenode(object){
+		var result = new InternalNode();
+		var children = [];
+		function iterator(index, found, tag){
+			var node = makenode(found);
+			if(node){
+				node.tags[tag] = index;
+				children.push(node);
+			}else{
+				result.prop[index] = found;
+			}
+		}
+
+		if(typeof object.length === 'number'){
+			result.tags.array = true;
+			arraysearch(object, [], iterator);
+		}else if(object.constructor === Object){
+			objectsearch(object, iterator);
+		}else{
+			return null;
+		}
+
+		result.children = new Stream(children);
+		return result;
+	}
+
+	function objectsearch(object, cb){
+		for(var i in object){
+			if(object.hasOwnProperty(i)){
+				cb(i, object[i], 'name');
+			}
+		}
+	}
+
+	function arraysearch(array, index, cb){
+		for(var i = 0; i < array.length; i++){
+			var nindex = index.slice(0).push(i);
+			if(flatten && array[i].length){
+				arraysearch(array[i], nindex, cb);
+			}else{
+				cb(nindex, array[i], 'index');
+			}
+		}
+	}
+};
+
+});
+;define("src/stream", function(require, exports, module){// A static collection of elements which can be extended to serve data from ajax
+// and other asynchronous sources. A stream does not provide a mechanism to
+// model mutable or changing data. Hence any call to a stream with the same
+// arguments must always return the same result. This initial implementation of
+// streams serves an array of elements.
+
+/**
+ * A possibly infinite stream of elements.
+ * @constructor
+ * @param {Array} array      - array of elements to serve
+ * @param {function=} mapper - all elements are lazily mapped with this function
+ */
+function Stream(){}
+
+/**
+ * Asynchronous, return the next element that may match the assertions. This may
+ * be overrided to do more concrete enhancements that take the assertions into
+ * account while traversing.
+ * @param {number} minindex          - the result must be at least this
+ * @param {DNF|Assertion} assertions - may be used to improve iteration
+ * @param {function} done            - invoked with the result of the method
+ */
+Stream.prototype.next = function(minindex, assertions, offset, done){
+	throw new Error('Not implemented.');
+};
+
+/**
+ * Stream constructed from array.
+ * @constructor
+ */
+Stream.Array = function(array){
+	if(array && !(array instanceof Array)){
+		array = [array];
+	}
+	this.elements = array || [];
+};
+
+Stream.Array.prototype = new Stream();
+
+Stream.Array.prototype.next = function(minindex, assertions, done){
+	if(minindex >= this.elements.length){
+		done(null, minindex, null, {length: this.elements.length});
+	}else{
+		var element = this.elements[minindex];
+		if(this.mapper)element = this.mapper(element);
+		done(null, minindex, element);
+	}
+};
+
+/**
+ * Offset the stream by 'moving' the elements of the stream.
+ * @constructor
+ */
+function Offset(original, extend){
+	this.original = original;
+	this.extend   = extend;
+}
+
+Offset.prototype = new Stream();
+
+Offset.prototype.next = function(minindex, assertions, done){
+	var self = this;
+	function result(err, i, element, ended){
+		if(ended){
+			ended.length += self.extend;
+		}
+		done(err, i + self.extend, element, ended);
+	}
+	this.original.next(minindex - this.extend, assertions, result);
+};
+
+/**
+ * Wraps an existing stream and lazily maps all values. Can be used to map
+ * children recursive when the passed mapper replaces children with a new 
+ * Stream.Mapper instance.
+ * @constructor
+ */
+function Mapper(original, mapper){
+	this.original = original;
+	this.result   = [];
+}
+
+Mapper.prototype = new Stream();
+
+Mapper.prototype.next = function(minindex, assertions, done){
+	var self = this;
+	function result(err, i, element, ended){
+		if(element){
+			if(!self.result[i]){
+				self.result[i] = mapper(element);
+			}
+			element = self.result[i];
+		}
+		done(err, i, element, ended);
+	}
+	this.original.next(minindex, assertions, result);
+};
+
+/**
+ * Build a stream that is a concatination of two existing streams.
+ * @constructor
+ */
+function Append(original, stream){
+	this.original = original;
+	this.stream   = stream;
+}
+
+Append.prototype = new Stream();
+
+Append.prototype.next = function(minindex, assertions, done){
+	var self = this;
+	this.original.next(minindex, assertions, function(err, i, element, ended){
+		if(err)return done(err);
+		if(!ended){
+			done(err, i, element, null);
+		}else{
+			if(!self.offset){
+				self.offset = new Offset(self.stream, ended.length);
+			}
+			self.offset.next(minindex, assertions, done);
+		}
+	});
+};
+
+/**
+ * Build a substream of an existing stream.
+ * @constructor
+ */
+function Sub(original, index, count, fill){
+	this.reduced = new Offset(original, -index);
+	this.count   = count;
+	this.fill    = fill;
+}
+
+Sub.prototype = new Stream();
+
+Sub.prototype.next = function(minindex, assertions, done){
+	if(minindex >= this.count && this.fill){
+		return done(null, null, null, {length: this.count});
+	}
+	var self = this;
+	this.reduced.next(minindex, assertions, function(err, i, element, ended){
+		if(err)return done(err);
+		if((!ended || self.fill) && i >= self.count){
+			done(err, null, null, {length: self.count});
+		}else{
+			if(self.fill && ended){
+				done(err, i, undefined, null);
+			}else{
+				done(err, i, element, ended);
+			}
+		}
+	});
+};
+
+/**
+ * The Infinity number is used to build Sub streams.
+ */
+var infity = Number.POSITIVE_INFINITY;
+
+/**
+ *
+ */
+Stream.prototype.append = function(nodes){
+	if(!(nodes instanceof Stream)){
+		nodes = new Stream.Array(nodes);
+	}
+	return new Append(this, nodes);
+};
+
+/**
+ *
+ */
+Stream.prototype.map = function(mapper){
+	return new Stream.Mapper(this, mapper);
+};
+
+/**
+ *
+ */
+Stream.prototype.prepend = function(index, nodes){
+	if(!(nodes instanceof Stream)){
+		nodes = new Stream.Array(nodes);
+	}
+	var head = new Sub(this, 0, index, true);
+	var tail = new Sub(this, index, infity);
+	return new Append(head, new Append(nodes, tail));
+};
+
+/**
+ *
+ */
+Stream.prototype.detach = function(index, length){
+	var head = new Sub(this, 0, index, true);
+	var tail = new Sub(this, index+length, infity);
+	return {
+		target: new Append(head, tail),
+		result: new Sub(this, index, length)
+	};
+};
+
+module.exports = Stream;});
  run.require("src"); 
  }((typeof exports === "undefined" ? window.run={} : exports),Function("return this")()));

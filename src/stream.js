@@ -59,11 +59,12 @@ function Offset(original, extend){
 Offset.prototype = new Stream();
 
 Offset.prototype.next = function(minindex, assertions, done){
+	var self = this;
 	function result(err, i, element, ended){
 		if(ended){
-			ended.length += this.extend;
+			ended.length += self.extend;
 		}
-		done(err, i + this.extend, element, ended);
+		done(err, i + self.extend, element, ended);
 	}
 	this.original.next(minindex - this.extend, assertions, result);
 };
@@ -77,17 +78,18 @@ Offset.prototype.next = function(minindex, assertions, done){
 function Mapper(original, mapper){
 	this.original = original;
 	this.result   = [];
-};
+}
 
 Mapper.prototype = new Stream();
 
 Mapper.prototype.next = function(minindex, assertions, done){
+	var self = this;
 	function result(err, i, element, ended){
 		if(element){
-			if(!this.result[i]){
-				this.result[i] = mapper(element);
+			if(!self.result[i]){
+				self.result[i] = mapper(element);
 			}
-			element = this.result[i];
+			element = self.result[i];
 		}
 		done(err, i, element, ended);
 	}
@@ -101,20 +103,21 @@ Mapper.prototype.next = function(minindex, assertions, done){
 function Append(original, stream){
 	this.original = original;
 	this.stream   = stream;
-};
+}
 
 Append.prototype = new Stream();
 
 Append.prototype.next = function(minindex, assertions, done){
+	var self = this;
 	this.original.next(minindex, assertions, function(err, i, element, ended){
 		if(err)return done(err);
 		if(!ended){
 			done(err, i, element, null);
 		}else{
-			if(!this.offset){
-				this.offset = new Offset(this.stream, ended.length);
+			if(!self.offset){
+				self.offset = new Offset(self.stream, ended.length);
 			}
-			this.offset.next(minindex, assertions, done);
+			self.offset.next(minindex, assertions, done);
 		}
 	});
 };
@@ -127,7 +130,7 @@ function Sub(original, index, count, fill){
 	this.reduced = new Offset(original, -index);
 	this.count   = count;
 	this.fill    = fill;
-};
+}
 
 Sub.prototype = new Stream();
 
@@ -135,12 +138,13 @@ Sub.prototype.next = function(minindex, assertions, done){
 	if(minindex >= this.count && this.fill){
 		return done(null, null, null, {length: this.count});
 	}
+	var self = this;
 	this.reduced.next(minindex, assertions, function(err, i, element, ended){
 		if(err)return done(err);
-		if((!ended || this.fill) && i >= this.count){
-			done(err, null, null, {length: this.count});
+		if((!ended || self.fill) && i >= self.count){
+			done(err, null, null, {length: self.count});
 		}else{
-			if(this.fill && ended){
+			if(self.fill && ended){
 				done(err, i, undefined, null);
 			}else{
 				done(err, i, element, ended);
