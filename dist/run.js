@@ -210,10 +210,12 @@ function DoneCounter(done){
 	};
 	this.branch = function(done){
 		this.start();
-		return new DoneCounter(function(){
+		var result = new DoneCounter(function(){
 			done();
 			this.close();
 		});
+		result.expired = this.expired;
+		return result;
 	};
 	this.expired = function(){
 		return count < 0;
