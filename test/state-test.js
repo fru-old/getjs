@@ -13,9 +13,13 @@ QUnit.test('Simple state transition.', function(assert) {
 	current.setEndState(5);
 
 	var next = current.transition({
-		attr: {
-			'test1': 'x',
-			'test2': 'x',
+		get: function(type, name){
+			assert.equal(type, 'attr');
+			var attr = {
+				'test1': 'x',
+				'test2': 'x',
+			};
+			return attr[name];
 		}
 	});
 
@@ -39,9 +43,13 @@ QUnit.test('DNF state transition.', function(assert) {
 	]);
 
 	var next = collection.transition({
-		attr: {
-			'test1': 'x',
-			'test2': 'x',
+		get: function(type, name){
+			assert.equal(type, 'attr');
+			var attr = {
+				'test1': 'x',
+				'test2': 'x',
+			};
+			return attr[name];
 		}
 	});
 
@@ -60,9 +68,13 @@ QUnit.test('Simple state non transition.', function(assert) {
 	current.setEndState(5);
 
 	var next = current.transition({
-		attr: {
-			'test1': 'x',
-			'test2': 'wrong!',
+		get: function(type, name){
+			assert.equal(type, 'attr');
+			var attr = {
+				'test1': 'x',
+				'test2': 'wrong',
+			};
+			return attr[name];
 		}
 	});
 

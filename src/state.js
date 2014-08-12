@@ -52,30 +52,40 @@ DNF.prototype.or = function(target){
 function Assertion(type, name, predicate, value){
 	/**
  	 * Test a node against assertion
- 	 * @param {Object} node - this is the node that is asserted
+ 	 * @param {Object} node - this is the node context that is asserted
  	 * @returns {boolean}   - true only when the assertion is true
  	 */
 	this.resolve = function(node){
-		var expected = (node[type] || {})[name];
-		return predicate(value, expected);
+		return predicate(value, node.get(type, name));
 	};
 }
+
+/**
+ * Assertion that is allways true
+ */
+Assertion.truthy = {
+	resolve: function(){
+		return true;
+	}
+};
+
 
 // Now we extend DNF to include the same resolve method that Assertion uses.
 
 /**
  * Resolve if a DNF expression is true or false by calling resolve on the
  * objects in the terms.
- * @param {Object=} node - this node is passed to every resolve method
+ * @param {Object=} node - this node context is passed to every resolve method
  * @returns {boolean}    - true only when all DNF terms resolve to true  
  */
 DNF.prototype.resolve = function(node){
 	var result = false;
 	for(var i = 0; i < this.terms.length; i++){
+
 		var termResult = true;
 		var t = this.terms[i].truthy;
 		var f = this.terms[i].falsey;
-		for(var j = 0; j < t.length; j++){
+		for(var j = 0; j < t.length; j++){	
 			termResult &= t[j].resolve(node);
 		}
 		for(var k = 0; k < f.length; k++){
@@ -139,7 +149,7 @@ function States(states, transitions, endStates){
 	/**
 	 * Build a new States object with active states corresponding to transition
 	 * that are resolved with DNF assertions.
-	 * @param {Object} node - the node that is used to transition the states
+	 * @param {Object} node - the node context that is used to transition states
 	 * @returns {States}    - new object with possibly different active states
 	 */
 	this.transition = function(node){
@@ -168,7 +178,7 @@ function States(states, transitions, endStates){
 
 /**
  * Transition all States object in a DNF expression given the node.
- * @param {Object} node - node that is matched in the state transition
+ * @param {Object} node - node context that is matched in the state transition
  * @returns {DNF}       - same terms as this but transitioned
  */
 DNF.prototype.transition = function(node){

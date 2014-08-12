@@ -67,7 +67,7 @@ Parsable.prototype.parse = function(each){
 	return parsable;
 };
 
-exports.parse = function(string){
+module.exports = function(string){
 
 	var parsed = Parsable.tokenize(string,
 		/\#|\:|\[|\]|[\=\!<>]+|\{|\}|\*+|\.|[^\#\:\[\]\=\!<>\{\}\*\.]+/g

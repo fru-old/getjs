@@ -7,10 +7,12 @@
 /**
  * A possibly infinite stream of elements.
  * @constructor
- * @param {Array} array      - array of elements to serve
- * @param {function=} mapper - all elements are lazily mapped with this function
+ * @param {Array} array    - array of elements to serve
+ * @param {bool=} infinite - all elements are lazily mapped with this function
  */
-function Stream(){}
+function Stream(infinite){
+	this.infinite = !!infinite;
+}
 
 /**
  * Asynchronous, return the next element that may match the assertions. This may
@@ -20,7 +22,7 @@ function Stream(){}
  * @param {DNF|Assertion} assertions - may be used to improve iteration
  * @param {function} done            - invoked with the result of the method
  */
-Stream.prototype.next = function(minindex, assertions, offset, done){
+Stream.prototype.next = function(minindex, assertions, done){
 	throw new Error('Not implemented.');
 };
 

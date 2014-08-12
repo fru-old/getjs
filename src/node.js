@@ -17,7 +17,7 @@ function Node(nodedata, children, isRoot){
 	this.children  = children || new Stream.Array();
 	this.nodedata  = nodedata || new Node.DefaultData();
 	// Timestamp of the last operation
-	this.timestamp = ID.ascending();
+	this.timestamp = 0;
 	// Still need to run on children {timestamp, operation}
 	this.pending   = [];
 	this.detached  = isRoot || false;
@@ -68,23 +68,23 @@ Node.DefaultData = function(){
  * Counts when the done callback should be invoked.
  */
 function DoneCounter(done){
-	var count = 0;
+	var count = 0, self = this;
 	this.start = function(){
 		count++;
 	};
 	this.close = function(){
 		if(count>0)count--;
 		if(count === 0){
-			counter = -1;
-			done();
+			count = -1;
+			if(done)done();
 		}
 	};
 	this.branch = function(done){
-		this.start();
 		var result = new DoneCounter(function(){
-			done();
-			this.close();
+			if(done)done();
+			self.close();
 		});
+		this.start();
 		result.expired = this.expired;
 		return result;
 	};
@@ -105,16 +105,17 @@ function cloning(node, root){
 
 // Run operation
 function execute(node, operation, timestamp, done){
-	var version = node.version();
 	var counter = new DoneCounter(done);
 	counter.start();
-	if(version.timestamp < timestamp){
-		version.timestamp = timestamp;
-		var context = new Context(node, counter);
+	if(node.timestamp < timestamp){
+		node.timestamp = timestamp;
+		var context = new Context(node, timestamp, counter);
 		var result  = operation(context, node);
 		if(result){
-			result.timestamp = timestamp;
-			version.pending.push(result);
+			node.pending.push({
+				timestamp: timestamp,
+				operation: result
+			});
 		}
 	}
 	counter.close();
@@ -122,7 +123,6 @@ function execute(node, operation, timestamp, done){
 
 // Get child at specific version and timestamp; run operation <= timestamp
 function resolve(parent, child, timestamp, done){
-	parent = parent.version();
 	(function recurse(i){
 		var index = parent.pending[i] || {};
 		var ended = parent.pending.length <= i;
@@ -140,7 +140,6 @@ function resolve(parent, child, timestamp, done){
 // Called after all matches may have been resolved. This validates the
 // assertions of the operations <= timestamp and removes the finished.
 function cleanup(parent, timestamp){
-	parent = parent.version();
 	while(parent.pending.length > 0){
 		if(parent.pending[0].timestamp > timestamp)break;
 		parent.pending.shift();
@@ -166,7 +165,7 @@ function expired(){
 /**
  * Wraps access to a node 
  */
-function Context(node, count){
+function Context(node, timestamp, count){
 
 	/**
 	 *
@@ -176,7 +175,7 @@ function Context(node, count){
 		var root;
 		function doClone(context, node){
 			root = cloning(node, !root);
-			return {operation: doClone};
+			return doClone;
 		}
 		execute(node, doClone, ID.ascending(), function(){});
 		// On this operation execute MUST return immediately
@@ -187,6 +186,11 @@ function Context(node, count){
 		if(count.expired())expired();
 		return node.detached;
 	};
+
+	this.isInfinite = function(){
+		if(count.expired())expired();
+		return !!(node.children||{}).infinite;
+	}
 
 	this.set = function(type, key, value){
 		if(count.expired())expired();
@@ -206,14 +210,58 @@ function Context(node, count){
 		return node.nodedata[type].clone(true);
 	};
 
-	this.next = function(start, assertion, done){
+	this.next = function(start, assertion, each, done){
 		if(count.expired())expired();
+		count.start();
+		var _error, _ended;
+		var branch = count.branch(function(){
+			if(done)done(_error, _ended);
+			count.close();
+		});
+		branch.start();
 
+		node.children.next(start, assertion, function(err, i, element, ended){
+			if(ended || err){
+				_error = err;
+				_ended = ended;
+				branch.close();
+			}else{
+				resolve(node, element, timestamp, function(){
+					each(i, new Context(element, timestamp, branch));
+					branch.close();
+				});
+			}
+		});
 	};
 
 	this.find = function(start, assertion, each, done){
 		if(count.expired())expired();
+		if(this.isInfinite()){
+			//TODO
+			//return done(null, {length: 0});
+		}
+		count.start();
+		var _error, _ended;
+		var branch = count.branch(function(){
+			if(done)done(_error, _ended);
+			count.close();
+		});
+		branch.start();
 
+		(function recurse(n){
+			node.children.next(n, assertion, function(err, i, element, ended){
+				if(ended || err){
+					_error = err;
+					_ended = ended;
+					branch.close();
+				}else{
+					resolve(node, element, timestamp, function(){
+						each(i, new Context(element, timestamp, branch));
+						recurse(i+1);
+					});
+				}	
+			});
+		}(start));
 	};
 
 }
@@ -245,10 +293,12 @@ Node.Root = function(node){
 };
 
 function Roots(stream){
-	this.prependTo = function(node, index){
+	this.prependTo = function(context, index){
 		
 	};
-	this.appendTo = function(node){
+	this.appendTo = function(context){
 
 	};
 }
+
+module.exports = Node;

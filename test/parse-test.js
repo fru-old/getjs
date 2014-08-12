@@ -1,10 +1,10 @@
-var query = run.require('src/parse');
+var parse = run.require('src/parse');
 
 
 
 QUnit.test('Simple.', function(assert) {
 	var template = "test.#test:id[test].{{test}}"; 
-	assert.deepEqual(query.parse(template), [
+	assert.deepEqual(parse(template), [
 	[   // test{{test2test}}
 		{type: '_', name: [{constant: 'test'}]}
 	],[ // ***
@@ -17,7 +17,7 @@ QUnit.test('Simple.', function(assert) {
 
 QUnit.test('Check Template AST.', function(assert) {
 	var template = "test{{test2test}}.***.test:id[test={{test}}].[test]";
-	assert.deepEqual(query.parse(template), [
+	assert.deepEqual(parse(template), [
 	[   // test{{test2test}}
 		{type: '_', name: [{constant: 'test'},{breakets: 'test2test'}]}
 	],[ // ***
