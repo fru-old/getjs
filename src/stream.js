@@ -78,25 +78,16 @@ Offset.prototype.next = function(minindex, assertions, done){
  * @constructor
  */
 function Mapper(original, mapper){
-	this.original = original;
-	this.result   = [];
+	this.next = function(minindex, assertions, done){
+		function result(err, i, element, ended){
+			if(element)mapper(element);
+			done(err, i, element, ended);
+		}
+		this.original.next(minindex, assertions, result);
+	};
 }
 
-Mapper.prototype = new Stream();
-
-Mapper.prototype.next = function(minindex, assertions, done){
-	var self = this;
-	function result(err, i, element, ended){
-		if(element){
-			if(!self.result[i]){
-				self.result[i] = mapper(element);
-			}
-			element = self.result[i];
-		}
-		done(err, i, element, ended);
-	}
-	this.original.next(minindex, assertions, result);
-};
+Mapper.prototype = new Stream(); 
 
 /**
  * Build a stream that is a concatination of two existing streams.

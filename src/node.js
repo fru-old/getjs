@@ -237,8 +237,7 @@ function Context(node, timestamp, count){
 	this.find = function(start, assertion, each, done){
 		if(count.expired())expired();
 		if(this.isInfinite()){
-			//TODO
-			//return done(null, {length: 0});
+			return done(null, {length: 0});
 		}
 		count.start();
 		var _error, _ended;
