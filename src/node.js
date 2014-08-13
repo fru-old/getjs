@@ -190,7 +190,7 @@ function Context(node, timestamp, count){
 	this.isInfinite = function(){
 		if(count.expired())expired();
 		return !!(node.children||{}).infinite;
-	}
+	};
 
 	this.set = function(type, key, value){
 		if(count.expired())expired();
@@ -227,7 +227,7 @@ function Context(node, timestamp, count){
 				branch.close();
 			}else{
 				resolve(node, element, timestamp, function(){
-					each(i, new Context(element, timestamp, branch));
+					each(new Context(element, timestamp, branch), i);
 					branch.close();
 				});
 			}
@@ -237,7 +237,8 @@ function Context(node, timestamp, count){
 	this.find = function(start, assertion, each, done){
 		if(count.expired())expired();
 		if(this.isInfinite()){
-			return done(null, {length: 0});
+			if(done)done(null, {length: 0});
+			return;
 		}
 		count.start();
 		var _error, _ended;
@@ -255,7 +256,7 @@ function Context(node, timestamp, count){
 					branch.close();
 				}else{
 					resolve(node, element, timestamp, function(){
-						each(i, new Context(element, timestamp, branch));
+						each(new Context(element, timestamp, branch), i);
 						recurse(i+1);
 					});
 				}	
@@ -285,6 +286,7 @@ function Context(node, timestamp, count){
 //tags.infinite
 
 Node.Root = function(node){
+	node.detached = true;
 	this.execute = function(operation, done){
 		if(!node.detached)expired();
 		execute(node, operation, ID.ascending(), done);

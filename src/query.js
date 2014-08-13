@@ -32,9 +32,9 @@ Query.buildStateMachine = function(traces){
 				// TODO
 				case '#':
 					break;
-				case ':':
-					break;
 				case '[':
+					break;
+				case ':':
 					break;
 			}
 		});
@@ -71,9 +71,9 @@ Query.buildStateMachine = function(traces){
 		}
 	});
 
-	if(!result){
+	//if(!result){
 		// TODO
-	}
+	//}
 	return result;
 };
 

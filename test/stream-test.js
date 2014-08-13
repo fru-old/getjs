@@ -1,4 +1,4 @@
-var Stream = run.require('src/stream');
+var Stream = get.require('src/stream');
 
 function toArray(children, done, array){
 	if(!array)array = [];

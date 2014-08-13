@@ -1,4 +1,4 @@
-var state = run.require('src/state');
+var state = get.require('src/state');
 var equal = function(a, b){ return a === b; };
 
 QUnit.test('Simple state transition.', function(assert) {

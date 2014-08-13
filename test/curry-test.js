@@ -1,4 +1,4 @@
-var curry = run.require('src/curry');
+var curry = get.require('src/curry');
 
 var twiceadd = curry(function(a, b){
 	return a + b*2;

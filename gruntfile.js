@@ -11,15 +11,10 @@ module.exports = function(grunt) {
 	var pkg = grunt.file.readJSON('package.json');
 
 	grunt.registerTask('size', 'Display file sizes.', function() {
-		var max = grunt.file.read('dist/run.js');
-		var min = grunt.file.read('dist/run-'+pkg.version+'.min.js');
+		var max = grunt.file.read('dist/get.js');
+		var min = grunt.file.read('dist/get-'+pkg.version+'.min.js');
 		console.log(require('maxmin')(max, min, true));
 	});
-
-	var args = [
-		'(typeof exports === "undefined" ? window.run={} : exports)',
-		'Function("return this")()'
-	].join(',');
 
 	function wrap(src, path){
 		path = path.replace(/.js$/, '')
@@ -30,15 +25,17 @@ module.exports = function(grunt) {
 	grunt.initConfig({
 		concat: {
 			dist: {
-				src: ['src/require.js', 'src/*.js'],
-				dest: 'dist/run.js',
+				src: ['src/require.js', '!src/index.js', 'src/*.js', 'src/index.js'],
+				dest: 'dist/get.js',
 				options: {
 					process: function(src, path){
-						if(path === 'src/require.js')return src;
+						if(path === 'src/require.js' || path === 'src/index.js'){
+							return src;
+						}
 						return wrap(src, path);
 					},
-					banner: ';(function(run, global, undefined){ \n "use strict"; \n',
-					footer: '\n run.require("src"); \n }(' + args + '));'
+					banner: ';(function(global, undefined){ \n "use strict"; \n',
+					footer: 'afterDefine(); \n }(Function("return this")()));'
 				}
 			}
 		},
@@ -50,7 +47,7 @@ module.exports = function(grunt) {
 				coverage: {
 					instrumentedFiles: '/temp',
 					disposeCollector: true,
-					src: ['dist/run.js'],
+					src: ['dist/get.js'],
 					htmlReport: 'report/coverage'
 				},
 				addJSDocExamples: 'test/test.html'
@@ -81,8 +78,8 @@ module.exports = function(grunt) {
 				compilation_level: 'SIMPLE_OPTIMIZATIONS'
 			},
 			all: {
-				src: 'dist/run.js',
-				dest: 'dist/run-'+pkg.version+'.min.js'
+				src: 'dist/get.js',
+				dest: 'dist/get-'+pkg.version+'.min.js'
 			}
 		},
 

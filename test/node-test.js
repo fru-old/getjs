@@ -1,5 +1,5 @@
-var Node   = run.require('src/node');
-var Stream = run.require('src/stream');
+var Node   = get.require('src/node');
+var Stream = get.require('src/stream');
 
 function InfiniteStream(){
 	var result = [];
@@ -15,7 +15,7 @@ function InfiniteStream(){
 function getFirstFive(node, done){
 	var result = [];
 	(function recurse(index){
-		node.next(index, null, function(i, element){
+		node.next(index, null, function(element, i){
 			result.push(element.get('tags','name'));
 			if(result.length>=5)return done(result);
 			recurse(i+1);
@@ -34,8 +34,8 @@ QUnit.test('Resolve operation.', function(assert){
 		};
 	}, function(){
 		root.execute(function(context){
-			context.next(0,null,function(i, element){
-				element.next(0,null,function(i){
+			context.next(0,null,function(element){
+				element.next(0,null,function(){
 					
 				});
 			});

@@ -1,6 +1,6 @@
-var Query  = run.require('src/query');
-var parse  = run.require('src/parse');
-var Stream = run.require('src/stream');
+var Query  = get.require('src/query');
+var parse  = get.require('src/parse');
+var Stream = get.require('src/stream');
 
 QUnit.test('Transition state machine.', function(assert){
 

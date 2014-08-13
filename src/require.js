@@ -28,7 +28,7 @@ function normalize(id, base){
 /**
  * @Public
  */
-var define = run.define = function(id, factory) { 
+function define(id, factory) { 
 	var newid = id.replace(/\/index$/, '');
 
 	// store mapped id to resolve path relative to old path
@@ -36,12 +36,12 @@ var define = run.define = function(id, factory) {
 
 	// store factory under both new and old ids
 	factories[id] = factories[newid] = factory;
-};
+}
 
 /**
  * @Public
  */
-var require = run.require = function(id) {
+function require(id) {
 	if (!modules[id]){		
 		var message = "Could not load module: '"+id+"'";
 		if(!factories[id])throw new Error(message);
@@ -60,4 +60,4 @@ var require = run.require = function(id) {
 	}
 	
 	return modules[id];
-};
+}

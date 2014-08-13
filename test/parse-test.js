@@ -1,4 +1,4 @@
-var parse = run.require('src/parse');
+var parse = get.require('src/parse');
 
 
 

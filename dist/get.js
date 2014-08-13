@@ -1,4 +1,4 @@
-;(function(run, global, undefined){ 
+;(function(global, undefined){ 
  "use strict"; 
 
 var modules   = {};
@@ -30,7 +30,7 @@ function normalize(id, base){
 /**
  * @Public
  */
-var define = run.define = function(id, factory) { 
+function define(id, factory) { 
 	var newid = id.replace(/\/index$/, '');
 
 	// store mapped id to resolve path relative to old path
@@ -38,12 +38,12 @@ var define = run.define = function(id, factory) {
 
 	// store factory under both new and old ids
 	factories[id] = factories[newid] = factory;
-};
+}
 
 /**
  * @Public
  */
-var require = run.require = function(id) {
+function require(id) {
 	if (!modules[id]){		
 		var message = "Could not load module: '"+id+"'";
 		if(!factories[id])throw new Error(message);
@@ -62,7 +62,7 @@ var require = run.require = function(id) {
 	}
 	
 	return modules[id];
-};
+}
 ;define("src/curry", function(require, exports, module){
 
 // Identify the underscore variable
@@ -125,8 +125,30 @@ function curry(func, enableUncurry){
 module.exports = curry;
 
 });
-;define("src/index", function(require, exports, module){// Define get
-});
+
+// Define get
+function get(){
+
+}
+
+get.define  = define;
+get.require = require;
+
+// Make get globally available
+
+if(typeof exports === "undefined"){
+	window.get = get;
+}else{
+	module.exports = get;
+}
+
+
+/**
+ * Executed after every module has been defined
+ */
+function afterDefine(){
+	get.require('src/static')(get);	
+}
 ;define("src/node", function(require, exports, module){var Stream = require('./stream');
 
 /**
@@ -319,7 +341,7 @@ function Context(node, timestamp, count){
 	this.isInfinite = function(){
 		if(count.expired())expired();
 		return !!(node.children||{}).infinite;
-	}
+	};
 
 	this.set = function(type, key, value){
 		if(count.expired())expired();
@@ -356,7 +378,7 @@ function Context(node, timestamp, count){
 				branch.close();
 			}else{
 				resolve(node, element, timestamp, function(){
-					each(i, new Context(element, timestamp, branch));
+					each(new Context(element, timestamp, branch), i);
 					branch.close();
 				});
 			}
@@ -366,7 +388,8 @@ function Context(node, timestamp, count){
 	this.find = function(start, assertion, each, done){
 		if(count.expired())expired();
 		if(this.isInfinite()){
-			return done(null, {length: 0});
+			if(done)done(null, {length: 0});
+			return;
 		}
 		count.start();
 		var _error, _ended;
@@ -384,7 +407,7 @@ function Context(node, timestamp, count){
 					branch.close();
 				}else{
 					resolve(node, element, timestamp, function(){
-						each(i, new Context(element, timestamp, branch));
+						each(new Context(element, timestamp, branch), i);
 						recurse(i+1);
 					});
 				}	
@@ -414,6 +437,7 @@ function Context(node, timestamp, count){
 //tags.infinite
 
 Node.Root = function(node){
+	node.detached = true;
 	this.execute = function(operation, done){
 		if(!node.detached)expired();
 		execute(node, operation, ID.ascending(), done);
@@ -686,9 +710,9 @@ Query.buildStateMachine = function(traces){
 				// TODO
 				case '#':
 					break;
-				case ':':
-					break;
 				case '[':
+					break;
+				case ':':
 					break;
 			}
 		});
@@ -725,9 +749,9 @@ Query.buildStateMachine = function(traces){
 		}
 	});
 
-	if(!result){
+	//if(!result){
 		// TODO
-	}
+	//}
 	return result;
 };
 
@@ -957,68 +981,158 @@ DNF.prototype.transition = function(node){
 module.exports.States = States;
 module.exports.DNF = DNF;
 module.exports.Assertion = Assertion;});
-;define("src/static", function(require, exports, module){// tags.index = [0,4,1]
-// tags.name = 'xyz'
-// tags.root = true
+;define("src/static", function(require, exports, module){var Stream = require('./stream');
+var Node   = require('./node');
 
-// prop.1 = 1
-
-var Stream = require('./child');
-
-get.json = function(object, options){
-	var flatten = (options||{}).flatten;
-
-	var root = makenode(object);
-	if(!root){
-		throw new Error('Expected toplevel array or object.');
-	}
-	root.tags.root = true;
-	return root;
-
-	function makenode(object){
-		var result = new InternalNode();
-		var children = [];
-		function iterator(index, found, tag){
-			var node = makenode(found);
-			if(node){
-				node.tags[tag] = index;
-				children.push(node);
-			}else{
-				result.prop[index] = found;
-			}
+/**
+ * Call cb for every property in the object.
+ */
+function objectSearch(object, cb){
+	for(var i in object){
+		if(object.hasOwnProperty(i)){
+			cb(i, object[i], false);
 		}
+	}
+}
 
-		if(typeof object.length === 'number'){
-			result.tags.array = true;
-			arraysearch(object, [], iterator);
-		}else if(object.constructor === Object){
-			objectsearch(object, iterator);
+/**
+ * Check if object is an array.
+ */
+function isArray(object){
+	return (typeof object !== 'string') && (typeof object.length === 'number');
+}
+
+/**
+ * Call cb for every element in array.
+ */
+function arraySearch(array, index, flatten, cb){
+	for(var i = 0; i < array.length; i++){
+		var nindex = index.slice(0);
+		nindex.push(i);
+		if(flatten && isArray(array[i])){
+			arraySearch(array[i], nindex, flatten, cb);
 		}else{
-			return null;
-		}
-
-		result.children = new Stream(children);
-		return result;
-	}
-
-	function objectsearch(object, cb){
-		for(var i in object){
-			if(object.hasOwnProperty(i)){
-				cb(i, object[i], 'name');
-			}
+			cb(nindex, array[i], true);
 		}
 	}
+}
 
-	function arraysearch(array, index, cb){
-		for(var i = 0; i < array.length; i++){
-			var nindex = index.slice(0).push(i);
-			if(flatten && array[i].length){
-				arraysearch(array[i], nindex, cb);
+/**
+ * Build node from object.
+ */
+function makeNode(object, flatten){
+	var result   = new Node.DefaultData();
+	var children = [];
+
+	function iterator(index, found, array){
+		var node = makeNode(found);
+		if(node){
+			var tag = array ? 'index' : 'name';
+			node.nodedata.tags.set(tag, index);
+			children.push(node);
+		}else{
+			result.prop.set(index, found);
+		}
+	}
+
+	if(isArray(object)){
+		result.tags.set('array', true);
+		arraySearch(object, [], flatten, iterator);
+	}else if(object.constructor === Object){
+		objectSearch(object, iterator);
+	}else{
+		return null;
+	}
+	return new Node(result, new Stream.Array(children));
+}
+
+function fillArray(context, js, result, rest){
+	var index = context.get('tags', 'index');
+	function recurse(n){
+		if(index.length <= n+1){
+			result[index[n]] = js;
+		}else{
+			result[index[n]] = [];
+			recurse(n+1);
+		}
+	}
+
+	if(index && typeof index[0] === 'number'){
+		recurse(0);
+	}else{
+		rest.push(js);
+	}
+}
+
+function fillObject(context, js, result, rest){
+	var name = context.get('tags', 'name');
+	if(name){
+		result[name] = js;
+	}else{
+		rest.push(js);
+	}
+}
+
+/**
+ * Convert runjs root back to a js object
+ */
+function toJS(context, done){
+	var isArray = context.get('tags', 'array');
+	var rest    = [];
+	var result  = isArray?[]:{};
+	context.find(0, null, function(child){
+		toJS(child, function(js){
+			if(isArray){
+				fillArray(child, js, result, rest);
 			}else{
-				cb(nindex, array[i], 'index');
+				fillObject(child, js, result, rest);
 			}
+		});
+	}, function(){
+		if(isArray){
+			result = result.concat(rest);
 		}
-	}
+		var prop = context.all('prop');
+		for(var i in prop){
+			result[i] = prop[i];
+		}
+		done(result);
+	});
+}
+
+
+
+
+
+module.exports = function(get){
+
+	/**
+	 * Static method to build a getjs root node from js objec.
+	 */
+	get.read = function(data, options){
+		if(!options)options = {};
+		var type = options.type ? options.type.toLowerCase() : '';
+
+		if(!type || type === 'js'){
+			var root = makeNode(data, !!options.flatten);
+			if(!root){
+				throw new Error('Expected toplevel array or object.');
+			}
+			return new Node.Root(root);
+		}
+	};
+
+	/**
+	 * Build js object from getjs root node.
+	 */
+	get.toJS = function(root, done){
+		root.execute(function(context){
+			toJS(context, function(result){
+				done(result);
+			});
+		});
+	};
+
 };
 
 });
@@ -1216,6 +1330,5 @@ Stream.prototype.detach = function(index, length){
 	};
 };
 
-module.exports = Stream;});
- run.require("src"); 
- }((typeof exports === "undefined" ? window.run={} : exports),Function("return this")()));
+module.exports = Stream;});afterDefine(); 
+ }(Function("return this")()));
