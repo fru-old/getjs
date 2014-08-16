@@ -3,7 +3,7 @@ var machine = require('./state');
 
 
 function Query(){
-	this.root = 
+	this.root = null;
 	this.traces = [];
 }
 

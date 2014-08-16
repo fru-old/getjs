@@ -38,7 +38,7 @@ DNF.prototype.or = function(target){
 	return this;
 };
 
-// Assertions are used to filter node objects. Attributes, properties and meta
+// Assertions are used to filter context objects. Attributes, properties and meta
 // information are asserted using predicate functions.
 
 /**
@@ -52,11 +52,11 @@ DNF.prototype.or = function(target){
 function Assertion(type, name, predicate, value){
 	/**
  	 * Test a node against assertion
- 	 * @param {Object} node - this is the node context that is asserted
- 	 * @returns {boolean}   - true only when the assertion is true
+ 	 * @param {Object} context - this is the context that is asserted
+ 	 * @returns {boolean}      - true only when the assertion is true
  	 */
-	this.resolve = function(node){
-		return predicate(value, node.get(type, name));
+	this.resolve = function(context){
+		return predicate(value, context.get(type, name));
 	};
 }
 
@@ -78,7 +78,7 @@ Assertion.truthy = {
  * @param {Object=} node - this node context is passed to every resolve method
  * @returns {boolean}    - true only when all DNF terms resolve to true  
  */
-DNF.prototype.resolve = function(node){
+DNF.prototype.resolve = function(context){
 	var result = false;
 	for(var i = 0; i < this.terms.length; i++){
 
@@ -86,10 +86,10 @@ DNF.prototype.resolve = function(node){
 		var t = this.terms[i].truthy;
 		var f = this.terms[i].falsey;
 		for(var j = 0; j < t.length; j++){	
-			termResult &= t[j].resolve(node);
+			termResult &= t[j].resolve(context);
 		}
 		for(var k = 0; k < f.length; k++){
-			termResult &= !f[k].resolve(node);
+			termResult &= !f[k].resolve(context);
 		}
 		if(termResult)result = true;
 	}
@@ -97,7 +97,7 @@ DNF.prototype.resolve = function(node){
 };
 
 // The States object contains both the state machine and all active states. When
-// a node needs to be matched `transition` is called to get a new States object
+// a context needs to be matched `transition` is called to get a new States object
 // with the same state machine but possible different active states.
 
 /**
@@ -149,17 +149,17 @@ function States(states, transitions, endStates){
 	/**
 	 * Build a new States object with active states corresponding to transition
 	 * that are resolved with DNF assertions.
-	 * @param {Object} node - the node context that is used to transition states
-	 * @returns {States}    - new object with possibly different active states
+	 * @param {Object} context - the context that is used to transition states
+	 * @returns {States}       - object with possibly different active states
 	 */
-	this.transition = function(node){
+	this.transition = function(context){
 		if(states.length === 0)return this;
 		var added  = {};
 		var result = [];
 		for(var i = 0; i < states.length; i++){
 			var trans = transitions[states[i]] || [];
 			for(var j = 0; j < trans.length; j++){
-				if(trans[j].dnfa.resolve(node)){
+				if(trans[j].dnfa.resolve(context)){
 					var newValue = trans[j].next;
 					if(!added[newValue]){
 						added[newValue] = true;
@@ -177,15 +177,15 @@ function States(states, transitions, endStates){
 // method that States uses.
 
 /**
- * Transition all States object in a DNF expression given the node.
- * @param {Object} node - node context that is matched in the state transition
- * @returns {DNF}       - same terms as this but transitioned
+ * Transition all States object in a DNF expression given the context.
+ * @param {Object} context - context that is matched in the state transition
+ * @returns {DNF}          - same terms as this but transitioned
  */
-DNF.prototype.transition = function(node){
+DNF.prototype.transition = function(context){
 	function copy(array){
 		var result = [];
 		for(var i = 0; i < array.length; i++){
-			result[i] = array[i].transition(node);
+			result[i] = array[i].transition(context);
 		}
 		return result;
 	}
