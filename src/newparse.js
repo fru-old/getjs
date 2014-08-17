@@ -50,14 +50,14 @@ var querylang = {
 		'[=!<>]+': {
 			type: 'operator',
 			invalid: function(operator){
-				var allowed = /^((===)|(!==)|(==)|(!==)|<|(<=)|>|(>=))$/;
+				var allowed = /^((===)|(!==)|(==)|(!==)|<|(<=)|>|(>=)|(~=))$/;
 				return !allowed.test(operator);
 			}
 		},
 		'[A-Za-z0-9]+': { type: 'name' },
 		'{{?': { type: '{' },
 		'}}?': { type: '}' },
-		':|#|\\[|\\]|\\.|\\*\\*?': {
+		':|#|\\[|\\]|\\.|\\*\\*?|~': {
 			type: function(simple){ return simple; }
 		}
 	},
@@ -122,7 +122,33 @@ var querylang = {
 		},
 		// OPERATOR -> operator VALUE
 		'7,8,operator': function(operator){
-
+			var predicate;
+			switch (operator) {
+				case '~=':
+					predicate = function(a,b){ return a.indexOf(b) !== -1; };
+					break;
+				case '==':
+				case '===':
+					predicate = function(a,b){ return a == b; };
+					break;
+				case '!=':
+				case '!==':
+					predicate = function(a,b){ return a != b; };
+					break;
+				case '<':
+					predicate = function(a,b){ return a < +b; };
+					break;
+				case '<=':
+					predicate = function(a,b){ return a <= +b; };
+					break;
+				case '>':
+					predicate = function(a,b){ return a > +b; };
+					break;
+				case '>=':
+					predicate = function(a,b){ return a >= +b; };
+					break;
+			}
+			this.last().predicate = predicate;
 		},
 
 		// OPERATOR -> ] REST
