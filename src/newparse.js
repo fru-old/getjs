@@ -1,64 +1,132 @@
-// This file will relly on state.js
+var machine = require('./state');
 
-// Language definition
-
-// START -> TERM '.' START
-// START -> TERM
-
-// TERM -> '**'
-// TERM -> REST
-// TERM -> NAME
-// TERM -> '*'  
-// TERM -> NAME REST
-// TERM -> '*'  REST
-
-// REST -> REST REST
-// REST -> ':' NAME
-// REST -> '[' BREAKET
-// REST -> '#' NAME
-
-// BREAKET -> NAME ']'
-// BREAKET -> NAME '===' VALUE ']'
-// BREAKET -> NAME '!==' VALUE ']'
-// BREAKET -> NAME '=='  VALUE ']'
-// BREAKET -> NAME '!='  VALUE ']'
-// BREAKET -> NAME '<'   VALUE ']'
-// BREAKET -> NAME '>'   VALUE ']'
-// BREAKET -> NAME '<='  VALUE ']'
-// BREAKET -> NAME '>='  VALUE ']'
-
-// VALUE -> VALUE VALUE
-// VALUE -> NAME 
-// VALUE -> '{{' NAME '}}'
-
-var querylang = {
-	start: 0,      // BEGIN
-	ended: [1, 2], // NEXT, REST
-
-	context: {
-		result: [[]],
-		last: function(){
-
-		},
-		add: function(VALUEe){
+module.exports = function(lang){
+	var tokenize = tokenizer(lang);
+	var states   = new machine.States();
+	for(var i in lang.endStates){
+		states.setEndState(lang.endStates[i]);
+	}
+	for(var j in lang.states){
+		var rule = j.split(',');
+		console.log(rule[0]);
+	}
+	return function(input){
+		var context = lang.context();
+		var tokens  = tokenize(input);
+		for(var t in tokens){
 
 		}
+		return context.value();
+	};
+};
+
+function run (value, parameter, context){
+	if(typeof value !== 'function'){
+		return value;
+	}
+	return value.call(context, parameter);
+}
+
+var tokenizer = module.exports.tokenizer = function(lang){
+	var definition = lang.tokenize;
+	var splitter   = '';
+	for(var i in definition){
+		if(splitter)splitter += '|';
+		splitter += '(?:' + i + ')';
+		definition[i].regex = new RegExp('^' + i + '$');
+	}
+	splitter = new RegExp('(' + splitter + ')');
+	return function(input){
+		var result = [];
+		input = input.split(splitter);
+		for(var i = 0; i < input.length; i++){
+			var token = input[i];
+			if(i%2===0){
+				if(token !== ''){
+					throw new Error('Unexpected char(s): '+token);
+				}
+			}else{
+				for(var j in definition){
+					var current = definition[j];
+					if(current.regex.test(token)){
+						var type  = run(current.type,token);
+						if(run(current.invalid,token)){
+							throw new Error('Invalid '+type+': '+token);
+						}
+						result.push({ type: type, token: token });
+						break;
+					}
+				}
+			}
+		}
+		return result;
+	};
+};
+
+
+
+
+
+
+
+
+/**
+ * Language definition:
+ *
+ * BEGIN -> TERM . TERM
+ * BEGIN -> TERM
+ *
+ * TERM -> **
+ * TERM -> name REST 
+ * TERM -> REST
+ * TERM -> * REST
+ * 
+ * REST -> REST REST
+ * REST -> : name
+ * REST -> # name
+ * REST -> [ name ]
+ * REST -> [ name operation name ]
+ * REST -> [ name operation { name } ]
+ */
+
+module.exports.querylang = {
+	endStates: [1, 2], // NEXT, REST
+
+	context: function(){ 
+		var context = {
+			result: [[]],
+			last: function(){
+
+			},
+			add: function(assertion){
+
+			},
+			value: function(){
+				return context.result;
+			}
+		};
+		return context;
 	},
 
 	tokenize: {
 		// All groups used here must be non capturing e.g. (?:...).
-		'[=!<>]+': {
+		'[=!<>~]+': {
 			type: 'operator',
 			invalid: function(operator){
 				var allowed = /^((===)|(!==)|(==)|(!==)|<|(<=)|>|(>=)|(~=))$/;
 				return !allowed.test(operator);
 			}
 		},
-		'[A-Za-z0-9]+': { type: 'name' },
+		'[A-Za-z0-9_\\-]+': { type: 'name' },
 		'{{?': { type: '{' },
 		'}}?': { type: '}' },
-		':|#|\\[|\\]|\\.|\\*\\*?|~': {
+		':|#|\\[|\\]|\\.|\\*\\*?': {
 			type: function(simple){ return simple; }
+		},
+		'\\s': {
+			invalid: function(){
+				throw new Error('No whitespace allowed.');
+			}
 		}
 	},
 
@@ -73,20 +141,29 @@ var querylang = {
 	// VALUE -> 8
 	// BREAKET -> 9
 	// BREAKET_CLOSE -> 10
-	// NEXT_VALUE -> 11
+	// END_VALUE -> 11
 
 	states: {
 		// BEGIN -> ** NEXT
 		'0,1,**': function(){ 
-			this.result.push([{type: '_', name: [{wildcard: 2}]}]);
+			this.add({
+				type: '**'
+			});
 		},
 		// BEGIN -> * REST
 		'0,2,*': function(){ 
-
+			this.add({
+				type: '_',
+				predicate: function(){return true;}
+			});
 		},
 		// BEGIN -> name REST
 		'0,2,name': function(name){ 
-
+			this.add({
+				type: '_',
+				name: name,
+				predicate: function(a,b){return a === b;}
+			});
 		},
 		// BEGIN -> : COLON
 		'0,3,:': null,
@@ -106,19 +183,31 @@ var querylang = {
 
 		// NEXT -> . BEGIN
 		'1,0,.': function(){
-
+			result.push([]);
 		},
 		// COLON -> name REST
 		'3,2,name': function(name){
-
+			this.add({
+				type: ':',
+				name: name
+			});
 		},
 		// HASH -> name REST
 		'4,2,name': function(name){
-
+			this.add({
+				type: '#',
+				name: name
+			});	
 		},
 		// ATTRIBUTE -> name OPERATOR
 		'6,7,name': function(name){
-
+			var last = this.last();
+			if(!last || last.type !== ':'){
+				this.add(last = {});
+			}
+			last.type = last.name || '[';
+			last.name = name;
+			last.predicate = function(a,b){ return a !== undefined; };
 		},
 		// OPERATOR -> operator VALUE
 		'7,8,operator': function(operator){
@@ -155,24 +244,22 @@ var querylang = {
 		'7,2,]': null,
 		// VALUE -> { BREAKET
 		'8,9,{': null,
-		// NEXT_VALUE -> { BREAKET
-		'11,9,{': null,
-		// BREAKET_CLOSE -> } NEXT_VALUE
+		// BREAKET_CLOSE -> } END_VALUE
 		'10,11,}': null,
 
 		// BREAKET -> name BREAKET_CLOSE
 		'9,10,name': function(breaket){
-
+			this.last().value = function(lookup){
+				return lookup(breaket);
+			};
 		},
-		// VALUE -> name NEXT_VALUE
+		// VALUE -> name END_VALUE
 		'8,11,name': function(name){
-
+			this.last().value = function(lookup){
+				return name;
+			};
 		},
-		// NEXT_VALUE -> name NEXT_VALUE
-		'11,11,name': function(name){
-
-		},
-		// NEXT_VALUE -> ] REST
+		// END_VALUE -> ] REST
 		'11,2,]': null
 	}
 };
