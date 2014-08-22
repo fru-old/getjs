@@ -25,7 +25,10 @@ function Node(nodedata, children, isRoot){
 }
 
 Node.prototype.onchange = function(){
+	console.log(JSON.stringify(this));
+	console.log(this.nodedata.tags.get('name'));
 	if(this.cloned){
+		console.log("!!!!!!!");
 		var data = {}, pending = [];
 		for(var i in this.nodedata){
 			data[i] = this.nodedata[i].clone();
@@ -97,8 +100,9 @@ function cloning(node, root){
 	// Both nodes need to be marked for cloning
 	node.cloned = true;
 
+	//console.log(node.nodedata.tags.get('name'));
 	var clone = new Node(node.nodedata, node.children, root);
-	clone.pending = node.pending;
+	clone.pending = node.pending.slice(0);
 	clone.cloned  = true;
 	return clone;
 }
@@ -150,7 +154,6 @@ function expired(){
 	throw new Error('This reference has expired.');
 }
 
-
 // The context wraps the child stream and nodedata access to support the 
 // following features
 // - being notified before nodedata or the child stream is changed to clone the
@@ -172,14 +175,30 @@ function Context(node, timestamp, count){
 	 */
 	this.clone = function(){
 		if(count.expired())expired();
-		var root;
-		function doClone(context, node){
-			root = cloning(node, !root);
+		/*var root = cloning()
+		function doClone(context, n){
+			root = cloning(n, !root);
 			return doClone;
 		}
-		execute(node, doClone, ID.ascending(), function(){});
+		*/
+
+
+		/// TODO how to integrate sub each/find in execute???
+
+		var root;
+		execute(node, function(context, node){
+			root = cloning(node, true);
+			return function recurse(context, node){
+				cloning(node);
+				return recursive;
+			}
+		}, timestamp);
 		// On this operation execute MUST return immediately
-		return new Root(root);
+		return new Node.Root(root);
+	};
+
+	this.internal = function(){
+		return node;
 	};
 
 	this.isRoot = function(){
@@ -195,6 +214,7 @@ function Context(node, timestamp, count){
 	this.set = function(type, key, value){
 		if(count.expired())expired();
 		if(!node.nodedata[type])throw new Error('Unknown type.');
+		node.onchange();
 		return node.nodedata[type].set(key, value);
 	};
 
@@ -210,8 +230,7 @@ function Context(node, timestamp, count){
 		return node.nodedata[type].clone(true);
 	};
 
-	this.next = function(start, assertion, each, done){
-		if(count.expired())expired();
+	function iterator(find, iterate, each, done){
 		count.start();
 		var _error, _ended;
 		var branch = count.branch(function(){
@@ -220,7 +239,7 @@ function Context(node, timestamp, count){
 		});
 		branch.start();
 
-		node.children.next(start, assertion, function(err, i, element, ended){
+		find(function(err, i, element, ended){
 			if(ended || err){
 				_error = err;
 				_ended = ended;
@@ -228,10 +247,20 @@ function Context(node, timestamp, count){
 			}else{
 				resolve(node, element, timestamp, function(){
 					each(new Context(element, timestamp, branch), i);
-					branch.close();
+					iterate(branch);
 				});
 			}
 		});
+	}
+
+	this.next = function(start, assertion, each, done){
+		if(count.expired())expired();
+
+		iterator(function(found){
+			node.children.next(start, assertion, found);
+		}, function(branch){
+			branch.close();
+		}, each, done);
 	};
 
 	this.find = function(start, assertion, each, done){
@@ -240,28 +269,17 @@ function Context(node, timestamp, count){
 			if(done)done(null, {length: 0});
 			return;
 		}
-		count.start();
-		var _error, _ended;
-		var branch = count.branch(function(){
-			if(done)done(_error, _ended);
-			count.close();
-		});
-		branch.start();
+		var recurse;
 
-		(function recurse(n){
-			node.children.next(n, assertion, function(err, i, element, ended){
-				if(ended || err){
-					_error = err;
-					_ended = ended;
-					branch.close();
-				}else{
-					resolve(node, element, timestamp, function(){
-						each(new Context(element, timestamp, branch), i);
-						recurse(i+1);
-					});
-				}	
-			});
-		}(start));
+		iterator(function(found){
+			recurse = function(){
+				node.children.next(start, assertion, found);
+			};
+			recurse();
+		}, function(){
+			start += 1;
+			recurse();
+		}, each, done);
 	};
 
 }

@@ -21,8 +21,6 @@ QUnit.test('Test toArray.', function(assert) {
 	});
 });
 
-
-
 QUnit.test('Test concat.', function(assert) {
 	var a1 = new Stream.Array([1,2]);
 	var a2 = new Stream.Array([3,4]);
@@ -31,8 +29,6 @@ QUnit.test('Test concat.', function(assert) {
 		assert.deepEqual([1,2,3,4], result);
 	});
 });
-
-
 
 QUnit.test('Test concat twice.', function(assert) {
 	var a1 = new Stream.Array([1,2]);

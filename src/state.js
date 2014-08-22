@@ -147,6 +147,14 @@ function States(states, transitions, endStates){
 	};
 
 	/**
+	 * Tests if there are not more active states.
+	 * @returns {boolean} - true if there are no more active states
+	 */
+	this.isDone = function(){
+		return states.length === 0;
+	};
+
+	/**
 	 * Build a new States object with active states corresponding to transition
 	 * that are resolved with DNF assertions.
 	 * @param {Object} context - the context that is used to transition states
@@ -197,6 +205,14 @@ DNF.prototype.transition = function(context){
 		};
 	}
 	return result;
+};
+
+/**
+ * Tests if there are not more active states - this does not work for DNF's
+ * @returns {boolean} - true if there are no more active states
+ */
+DNF.prototype.isDone = function(context){
+	return false;
 };
 
 module.exports.States = States;
