@@ -4,10 +4,6 @@ var twiceadd = curry(function(a, b){
 	return a + b*2;
 });
 
-QUnit.test( 'Underscore has runid.', function( assert ) {
-	assert.ok( !!_.runid );
-});
-
 QUnit.test( 'Simple Curry', function( assert ) {
 	assert.equal( twiceadd(_, 3)(2) , 2+6);
 });

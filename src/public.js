@@ -47,4 +47,12 @@ Public.prototype.live = function(func, done){
 	
 };
 
+
+
+
+
+
+
+
+
 module.exports = Public;

@@ -191,7 +191,7 @@ function Context(node, timestamp, count){
 			return function recurse(context, node){
 				cloning(node);
 				return recursive;
-			}
+			};
 		}, timestamp);
 		// On this operation execute MUST return immediately
 		return new Node.Root(root);

@@ -63,63 +63,113 @@ function require(id) {
 	
 	return modules[id];
 }
-;define("src/curry", function(require, exports, module){
+;define("src/curry", function(require, exports, module){/**
+ * Special currying implementation that uses the _ character.
+ * 
+ * @setup
+ * var print = get.curry(function(a, b, c){
+ *   return '' + a + b + (c||'?');
+ * });
+ * 
+ * // An underscore used as a parameter means that all other parameter are
+ * // bound to the function. That function is returned and can be called again
+ * // with more parameters.
+ * 
+ * @example print(1,2,3)    // '123' 
+ * @example print(1,2,_)(3) // '123' 
+ * @example print(1,_)(2,3) // '123' 
+ * @example print(_)(1,2,3) // '123' 
+ * 
+ * // The Underscore placeholder can be used in between other parameters.
+ * 
+ * @example print(1,_,3)(2)   // '123'
+ * @example print(_,2,_)(1,3) // '123'
+ *
+ * // The number of parameters that the function print was declared with does
+ * // not influence currying.
+ *
+ * @example print(_,2)(1) // '12?'
+ * @example print(1,2)    // '12?'
+ *
+ * It is possible to curry multiple times.
+ * 
+ * @example print(1,_)(2,_)(3) // '123' 
+ */
 
-// Identify the underscore variable
-var _curry = (global._ || (global._ = {})).runid = {
-  equals: function(target){
-    return target && this === target.runid;
-  }
-};
 
-function curry(func, enableUncurry){
-  
-  var uncurry = false;
+// To make this compatible with underscore or any other js utility belt the _ 
+// variable is only declared when it doesn't already exist.
 
-  var curryable = function(){
+var underscore = global._ || (global._ = {});
+
+// We only add a reserved key to the underscore object to make it identifiable
+// when used for currying.
+
+var reservedKey = '_getjs_internals_currying';
+
+// Now we can construct a function that checks if a parameter is the underscore 
+
+function isUnderscore(target){
+  return target && target[reservedKey] === isUnderscore;
+}
+underscore[reservedKey] = isUnderscore;
+
+/**
+ * This transforms a function into a curry-able function.
+ */
+function curry(func){
+
+  return function(){
     var args = Array.prototype.slice.call(arguments, 0);
     var self = this;
 
-    var posCurry = [], last = false;
-
-    if(!uncurry){
-      for(var i = 0; i < args.length; i++){
-        if(_curry.equals(args[i])){
-          posCurry.push(i);
+    // Find the positions of underscores in the arguments and whether the last
+    // argument is an underscore.
+    var found = [];
+    var last  = false;
+    for(var i = 0; i < args.length; i++){
+      if(isUnderscore(args[i])){
+        if(i === args.length-1){
+          last = true;
+          args.pop();
+        }else{
+          found.push(i);
         }
       }
-      last = _curry.equals(args[args.length-1]);
     }
 
-    if(posCurry.length === 0 || uncurry){
+    // When there are no underscores then run the function directly.
+    if(!last && found.length === 0){
       return func.apply(self, args);
     }
 
+    // Returns a curry-able function because one can curry multiple times.
     return curry(function(){
-      var cargs = Array.prototype.slice.call(arguments, 0);
 
-      var expected = posCurry.length - (last ? 1 : 0);
-      if(cargs.length < expected){
-        throw new Error("Expect at least "+expected+" arguments.");
+      // Checks that the number of arguments is correct.
+      var expected = found.length;
+      
+      if(arguments.length < expected){
+        throw new Error("Expect at least " + expected + " arguments.");
       }
 
-      if(last)args.pop();
-      for(var i = 0; i < cargs.length; i++){
-        if(i < expected)args[posCurry[i]] = cargs[i];
-        else args.push(cargs[i]);
+      if(!last && arguments.length > expected){
+        throw new Error("Expect no more then " + expected + " arguments.");
+      }
+
+      // Insert the arguments into the args array
+      for(var i = 0; i < arguments.length; i++){
+        var value = arguments[i];
+        if(i < expected){
+          args[found[i]] = value;
+        }else{
+          args.push(value);
+        }
       }
 
       return func.apply(self, args);
-    }, true);
+    });
   };
-
-  curryable.uncurry = function(){
-    if(!enableUncurry)throw "Uncurry disabled.";
-    uncurry = true;
-    return this;
-  };
-
-  return curryable;  
 }
 
 module.exports = curry;
@@ -149,271 +199,6 @@ if(typeof exports === "undefined"){
 function afterDefine(){
 	get.require('src/static')(get);	
 }
-;define("src/newparse", function(require, exports, module){var machine = require('./state');
-
-module.exports = function(lang){
-	var tokenize = tokenizer(lang);
-	var states   = new machine.States();
-	for(var i in lang.endStates){
-		states.setEndState(lang.endStates[i]);
-	}
-	for(var j in lang.states){
-		var rule = j.split(',');
-		console.log(rule[0]);
-	}
-	return function(input){
-		var context = lang.context();
-		var tokens  = tokenize(input);
-		for(var t in tokens){
-
-		}
-		return context.value();
-	};
-};
-
-function run (value, parameter, context){
-	if(typeof value !== 'function'){
-		return value;
-	}
-	return value.call(context, parameter);
-}
-
-var tokenizer = module.exports.tokenizer = function(lang){
-	var definition = lang.tokenize;
-	var splitter   = '';
-	for(var i in definition){
-		if(splitter)splitter += '|';
-		splitter += '(?:' + i + ')';
-		definition[i].regex = new RegExp('^' + i + '$');
-	}
-	splitter = new RegExp('(' + splitter + ')');
-	return function(input){
-		var result = [];
-		input = input.split(splitter);
-		for(var i = 0; i < input.length; i++){
-			var token = input[i];
-			if(i%2===0){
-				if(token !== ''){
-					throw new Error('Unexpected char(s): '+token);
-				}
-			}else{
-				for(var j in definition){
-					var current = definition[j];
-					if(current.regex.test(token)){
-						var type  = run(current.type,token);
-						if(run(current.invalid,token)){
-							throw new Error('Invalid '+type+': '+token);
-						}
-						result.push({ type: type, token: token });
-						break;
-					}
-				}
-			}
-		}
-		return result;
-	};
-};
-
-
-
-
-
-
-
-
-/**
- * Language definition:
- *
- * BEGIN -> TERM . TERM
- * BEGIN -> TERM
- *
- * TERM -> **
- * TERM -> name REST 
- * TERM -> REST
- * TERM -> * REST
- * 
- * REST -> REST REST
- * REST -> : name
- * REST -> # name
- * REST -> [ name ]
- * REST -> [ name operation name ]
- * REST -> [ name operation { name } ]
- */
-
-module.exports.querylang = {
-	endStates: [1, 2], // NEXT, REST
-
-	context: function(){ 
-		var context = {
-			result: [[]],
-			last: function(){
-
-			},
-			add: function(assertion){
-
-			},
-			value: function(){
-				return context.result;
-			}
-		};
-		return context;
-	},
-
-	tokenize: {
-		// All groups used here must be non capturing e.g. (?:...).
-		'[=!<>~]+': {
-			type: 'operator',
-			invalid: function(operator){
-				var allowed = /^((===)|(!==)|(==)|(!==)|<|(<=)|>|(>=)|(~=))$/;
-				return !allowed.test(operator);
-			}
-		},
-		'[A-Za-z0-9_\\-]+': { type: 'name' },
-		'{{?': { type: '{' },
-		'}}?': { type: '}' },
-		':|#|\\[|\\]|\\.|\\*\\*?': {
-			type: function(simple){ return simple; }
-		},
-		'\\s': {
-			invalid: function(){
-				throw new Error('No whitespace allowed.');
-			}
-		}
-	},
-
-	// BEGIN -> 0
-	// NEXT -> 1
-	// REST -> 2
-	// COLON -> 3
-	// HASH -> 4
-	// IDENTFIER -> 5
-	// ATTRIBUTE -> 6
-	// OPERATOR -> 7
-	// VALUE -> 8
-	// BREAKET -> 9
-	// BREAKET_CLOSE -> 10
-	// END_VALUE -> 11
-
-	states: {
-		// BEGIN -> ** NEXT
-		'0,1,**': function(){ 
-			this.add({
-				type: '**'
-			});
-		},
-		// BEGIN -> * REST
-		'0,2,*': function(){ 
-			this.add({
-				type: '_',
-				predicate: function(){return true;}
-			});
-		},
-		// BEGIN -> name REST
-		'0,2,name': function(name){ 
-			this.add({
-				type: '_',
-				name: name,
-				predicate: function(a,b){return a === b;}
-			});
-		},
-		// BEGIN -> : COLON
-		'0,3,:': null,
-		// BEGIN -> # HASH
-		'0,4,#': null,
-		// BEGIN -> [ ATTRIBUTE	
-		'0,6,[': null,
-
-		// REST -> : COLON
-		'2,3,:': null,
-		// REST -> # HASH
-		'2,4,#': null,
-		// REST -> [ ATTRIBUTE
-		'2,6,[': null,
-		// REST -> . BEGIN
-		'2,0,.': null,
-
-		// NEXT -> . BEGIN
-		'1,0,.': function(){
-			result.push([]);
-		},
-		// COLON -> name REST
-		'3,2,name': function(name){
-			this.add({
-				type: ':',
-				name: name
-			});
-		},
-		// HASH -> name REST
-		'4,2,name': function(name){
-			this.add({
-				type: '#',
-				name: name
-			});	
-		},
-		// ATTRIBUTE -> name OPERATOR
-		'6,7,name': function(name){
-			var last = this.last();
-			if(!last || last.type !== ':'){
-				this.add(last = {});
-			}
-			last.type = last.name || '[';
-			last.name = name;
-			last.predicate = function(a,b){ return a !== undefined; };
-		},
-		// OPERATOR -> operator VALUE
-		'7,8,operator': function(operator){
-			var predicate;
-			switch (operator) {
-				case '~=':
-					predicate = function(a,b){ return a.indexOf(b) !== -1; };
-					break;
-				case '==':
-				case '===':
-					predicate = function(a,b){ return a == b; };
-					break;
-				case '!=':
-				case '!==':
-					predicate = function(a,b){ return a != b; };
-					break;
-				case '<':
-					predicate = function(a,b){ return a < +b; };
-					break;
-				case '<=':
-					predicate = function(a,b){ return a <= +b; };
-					break;
-				case '>':
-					predicate = function(a,b){ return a > +b; };
-					break;
-				case '>=':
-					predicate = function(a,b){ return a >= +b; };
-					break;
-			}
-			this.last().predicate = predicate;
-		},
-
-		// OPERATOR -> ] REST
-		'7,2,]': null,
-		// VALUE -> { BREAKET
-		'8,9,{': null,
-		// BREAKET_CLOSE -> } END_VALUE
-		'10,11,}': null,
-
-		// BREAKET -> name BREAKET_CLOSE
-		'9,10,name': function(breaket){
-			this.last().value = function(lookup){
-				return lookup(breaket);
-			};
-		},
-		// VALUE -> name END_VALUE
-		'8,11,name': function(name){
-			this.last().value = function(lookup){
-				return name;
-			};
-		},
-		// END_VALUE -> ] REST
-		'11,2,]': null
-	}
-};});
 ;define("src/node", function(require, exports, module){var Stream = require('./stream');
 
 /**
@@ -441,7 +226,10 @@ function Node(nodedata, children, isRoot){
 }
 
 Node.prototype.onchange = function(){
+	console.log(JSON.stringify(this));
+	console.log(this.nodedata.tags.get('name'));
 	if(this.cloned){
+		console.log("!!!!!!!");
 		var data = {}, pending = [];
 		for(var i in this.nodedata){
 			data[i] = this.nodedata[i].clone();
@@ -513,8 +301,9 @@ function cloning(node, root){
 	// Both nodes need to be marked for cloning
 	node.cloned = true;
 
+	//console.log(node.nodedata.tags.get('name'));
 	var clone = new Node(node.nodedata, node.children, root);
-	clone.pending = node.pending;
+	clone.pending = node.pending.slice(0);
 	clone.cloned  = true;
 	return clone;
 }
@@ -566,7 +355,6 @@ function expired(){
 	throw new Error('This reference has expired.');
 }
 
-
 // The context wraps the child stream and nodedata access to support the 
 // following features
 // - being notified before nodedata or the child stream is changed to clone the
@@ -588,14 +376,30 @@ function Context(node, timestamp, count){
 	 */
 	this.clone = function(){
 		if(count.expired())expired();
-		var root;
-		function doClone(context, node){
-			root = cloning(node, !root);
+		/*var root = cloning()
+		function doClone(context, n){
+			root = cloning(n, !root);
 			return doClone;
 		}
-		execute(node, doClone, ID.ascending(), function(){});
+		*/
+
+
+		/// TODO how to integrate sub each/find in execute???
+
+		var root;
+		execute(node, function(context, node){
+			root = cloning(node, true);
+			return function recurse(context, node){
+				cloning(node);
+				return recursive;
+			};
+		}, timestamp);
 		// On this operation execute MUST return immediately
-		return new Root(root);
+		return new Node.Root(root);
+	};
+
+	this.internal = function(){
+		return node;
 	};
 
 	this.isRoot = function(){
@@ -611,6 +415,7 @@ function Context(node, timestamp, count){
 	this.set = function(type, key, value){
 		if(count.expired())expired();
 		if(!node.nodedata[type])throw new Error('Unknown type.');
+		node.onchange();
 		return node.nodedata[type].set(key, value);
 	};
 
@@ -626,8 +431,7 @@ function Context(node, timestamp, count){
 		return node.nodedata[type].clone(true);
 	};
 
-	this.next = function(start, assertion, each, done){
-		if(count.expired())expired();
+	function iterator(find, iterate, each, done){
 		count.start();
 		var _error, _ended;
 		var branch = count.branch(function(){
@@ -636,7 +440,7 @@ function Context(node, timestamp, count){
 		});
 		branch.start();
 
-		node.children.next(start, assertion, function(err, i, element, ended){
+		find(function(err, i, element, ended){
 			if(ended || err){
 				_error = err;
 				_ended = ended;
@@ -644,10 +448,20 @@ function Context(node, timestamp, count){
 			}else{
 				resolve(node, element, timestamp, function(){
 					each(new Context(element, timestamp, branch), i);
-					branch.close();
+					iterate(branch);
 				});
 			}
 		});
+	}
+
+	this.next = function(start, assertion, each, done){
+		if(count.expired())expired();
+
+		iterator(function(found){
+			node.children.next(start, assertion, found);
+		}, function(branch){
+			branch.close();
+		}, each, done);
 	};
 
 	this.find = function(start, assertion, each, done){
@@ -656,28 +470,17 @@ function Context(node, timestamp, count){
 			if(done)done(null, {length: 0});
 			return;
 		}
-		count.start();
-		var _error, _ended;
-		var branch = count.branch(function(){
-			if(done)done(_error, _ended);
-			count.close();
-		});
-		branch.start();
+		var recurse;
 
-		(function recurse(n){
-			node.children.next(n, assertion, function(err, i, element, ended){
-				if(ended || err){
-					_error = err;
-					_ended = ended;
-					branch.close();
-				}else{
-					resolve(node, element, timestamp, function(){
-						each(new Context(element, timestamp, branch), i);
-						recurse(i+1);
-					});
-				}	
-			});
-		}(start));
+		iterator(function(found){
+			recurse = function(){
+				node.children.next(start, assertion, found);
+			};
+			recurse();
+		}, function(){
+			start += 1;
+			recurse();
+		}, each, done);
 	};
 
 }
@@ -719,400 +522,448 @@ function Roots(stream){
 }
 
 module.exports = Node;});
-;define("src/parse", function(require, exports, module){/**
- * A parsable stream of tokens
- * @constructor
- */
-function Parsable(original){
-	this.original = original;
+;define("src/parser", function(require, exports, module){var machine = require('./state');
+
+function run(value, parameter, context){
+	if(typeof value !== 'function'){
+		return value;
+	}
+	return value.call(context, parameter);
 }
 
-/**
- * Create a stream of tokens from a regex
- */
-Parsable.tokenize = function(string, regex){
-	var pos = 0;
-	return new Parsable(string.match(regex).map(function(token){
-		var result = {
-			data: token, 
-			pos: pos, 
-			assert: function(expected, returnResult){
-				var token = this.data;
-				if(expected === 'name'){
-					if(token.name || '#:[]=!<>.*{}'.indexOf(token[0])===-1){
-						return true;
-					}
-				}else if(token === expected ){
-					return true;
-				}
-				if(returnResult)return false;
-				throw new Error([
-					'Unexpected symbol "'+token+'" ',
-					'expected "'+expected+'" ',
-					'at column: '+this.pos
-				].join(''));
+function assert(state, type){
+	return {
+		resolve: function(token){
+			if(token.type !== type)return false;
+			run(state, token.token, token.context);
+			return true;
+		}
+	};
+}
+
+module.exports = function(lang){
+	var tokenize = tokenizer(lang);
+	var states   = new machine.States();
+	for(var i in lang.endStates){
+		states.setEndState(lang.endStates[i]);
+	}
+	for(var j in lang.states){
+		var rule = j.split(',');
+		var assertion = assert(lang.states[j], rule[2]);
+		states.addTransition(rule[0], rule[1], assertion);
+	}
+	return function(input){
+		var tokens  = tokenize(input);
+		var current = states;
+		var context = lang.context();
+		for(var t in tokens){
+			var token = tokens[t];
+			token.context = context;
+			current = current.transition(token);
+			if(current.isDone()){
+				throw new Error('Unexpected token: '+token.token);
 			}
-		};
-		pos += token.length;
+		}
+		if(!current.resolve()){
+			throw new Error('Unexpected end of input string.');
+		}
+		return context.value();
+	};
+};
+
+function tokenizer(lang){
+	var definition = lang.tokenize;
+	var splitter   = '';
+	for(var i in definition){
+		if(splitter)splitter += '|';
+		splitter += '(?:' + i + ')';
+		definition[i].regex = new RegExp('^' + i + '$');
+	}
+	splitter = new RegExp('(' + splitter + ')');
+	return function(input){
+		var result = [];
+		input = input.split(splitter);
+		for(var i = 0; i < input.length; i++){
+			var token = input[i];
+			if(i%2===0){
+				if(token !== ''){
+					throw new Error('Unexpected char(s): '+token);
+				}
+			}else{
+				for(var j in definition){
+					var current = definition[j];
+					if(current.regex.test(token)){
+						var type  = run(current.type,token);
+						if(run(current.invalid,token)){
+							throw new Error('Invalid '+type+': '+token);
+						}
+						result.push({ type: type, token: token });
+						break;
+					}
+				}
+			}
+		}
 		return result;
-	}));
+	};
+}});
+;define("src/public", function(require, exports, module){var Query = require('./query');
+
+
+function Public(){
+	this.root  = null;
+	this.query = new Query();
+}
+
+Public.prototype.get = function(){
+	this.query.concat(new Query(arguments));
+	return this;
 };
 
-/**
- * Map a stream of tokens.
- */
-Parsable.prototype.parse = function(each){
-	var current, state = 0;
-	var parsable = new Parsable(this.original.map(function(token, i){
-		if(!token)return token;
-		var removed = false;
-		var actions = {
-			// Modify current state
-			setState: function(s){ state = s; },
-			setCurrent: function(c){ current = c; },
-			// Remove the current token from the parsable stream
-			remove: function(){ removed = true; },
-			// Validate the type of the current token
-			expected: function(expected, returnResult){
-				return token.assert(expected, returnResult);
-			}
-		};
-		var result = each.call(actions, token.data, state, current);
-		return removed ? null : {
-			data: result, 
-			pos: token.pos, 
-			assert: token.assert
-		};
+Public.prototype.has = function(){
+	this.query.concat(new Query(arguments, {
+		isHas: true
 	}));
-	if(state > 0)throw new Error('Unexpected ending.');
-	return parsable;
+	return this;
 };
 
-module.exports = function(string){
+Public.prototype.from = function(root){
+	this.root = root;
+	return this;
+};
 
-	var parsed = Parsable.tokenize(string,
-		/\#|\:|\[|\]|[\=\!<>]+|\{|\}|\*+|\.|[^\#\:\[\]\=\!<>\{\}\*\.]+/g
 
-	).parse(function(token, state, current){
-
-		var name;
-
-		// 0 -> current may be falsy or the current name array
-		// 1 -> {{
-		// 2 -> {{temp
-		// 3 -> {{temp}
-		// 4 -> {{temp}}
-		
-		switch (state) {
-    		case 0:
-    			if(token[0] === '*'){
-    				name = {wildcard: token.length};
-    				break;
-				}else if(this.expected('name', true)){
-					name = {constant: token};
-					break;
-				}else if(token === '{'){
-    				this.setState(1);
-				}else{
-					this.setCurrent(null);
-					return token;
+Public.prototype.each = function(func){
+	if(this.query.matchesRoot()){
+		this.root.execute(function(node){
+			func(node);
+		});
+	}else{
+		var state = this.query.buildStateMachine();
+		this.root.execute(function(){
+			return function iterate(node){
+				state = state.transition(node);
+				if(state.resolve()){
+					func(node);
 				}
-				break;
-    		case 1:
-    			this.expected('{');
-    			this.setState(2);
-    			break;
-    		case 2:
-    			this.expected('name');
-    			name = {breakets: token};
-    			this.setState(3);
-    			break;
-    		case 3:
-    			this.expected('}');
-    			this.setState(4);
-    			break;
-    		case 4:
-    			this.expected('}');
-    			this.setState(0);
-    			break;
-    	}
-    	
-    	if(!current){
-    		this.setCurrent(current = (name ? [name] : []));
-    		return {name: current};
-    	}else{
-    		this.remove();
-    		if(name)current.push(name);
-    	}
+				if(!state.isDone())return iterate;
+			};
+		});
+	}
+};
 
-	}).parse(function(token, state, current){
-
-		var newCurrent;
-
-		// -1 -> possibly [ after :
-		// 0  -> default
-		// 1  -> name after #
-		// 2  -> name after :
-		// 3  -> allready found [
-		// 4  -> allready found [name
-		// 5  -> allready found [name=
-		// 6  -> expect ]
-
-		switch (state) {
-			case -1:
-				if(token === '['){
-					this.setState(3);
-					break;
-				}
-			/* falls through */
-			case 0:
-				if(token.name){
-					newCurrent = {type: '_', name: token.name};
-				}else{
-					switch (token) {
-						case '.':
-							return token;
-						case '#':
-							this.setState(1);
-							break;
-						case ':':
-							this.setState(2);
-							break;
-						case '[':
-							this.setState(3);
-							break;
-						default:
-							this.expected('#, : or [');
-					}
-					newCurrent = {type: token};
-				}
-				break;
-			case 1:
-			case 2:
-				this.expected('name');
-				current.name = token.name;
-				this.setState(state === 1 ? 0 : -1);
-				break;
-			case 3:
-				this.expected('name');
-				current.prop = token.name;
-				this.setState(4);
-				break;
-			case 4:
-				if('=!<>'.indexOf(token[0])!==-1){
-					current.assert = token;
-					this.setState(5);
-				}else{
-					this.expected(']');
-					this.setState(0);
-				}
-				break;
-			case 5:
-				this.expected('name');
-				current.value = token.name;
-				this.setState(6);
-				break;
-			case 6:
-				this.expected(']');
-				this.setState(0);
-				break;
-		}
-
-		if(newCurrent){
-			this.setCurrent(newCurrent);
-    		return newCurrent;
-		}else{
-			this.remove();
-		}
-	});
-
-	// 
-
-	var result = [[]];
-
-	parsed.parse(function(token){
-		if(token === '.'){
-			result.push([]);
-		}else{
-			result[result.length-1].push(token);
-		}
-	});
+Public.prototype.live = function(func, done){
 	
-	return result;
 };
+
+
+
+
+
+
+
+
+
+module.exports = Public;
 });
-;define("src/query", function(require, exports, module){var parse   = require('./parse');
+;define("src/query", function(require, exports, module){var parser  = require('./parser');
 var machine = require('./state');
 
+/**
+ * Language definition:
+ *
+ * BEGIN -> TERM . TERM
+ * BEGIN -> TERM
+ *
+ * TERM -> **
+ * TERM -> name REST 
+ * TERM -> REST
+ * TERM -> * REST
+ * 
+ * REST -> REST REST
+ * REST -> : name
+ * REST -> # name
+ * REST -> [ name ]
+ * REST -> [ name operation name ]
+ * REST -> [ name operation { name } ]
+ */
 
-function Query(){
-	this.root = null;
+var querylang = {
+	endStates: [1, 2], // NEXT, REST
+
+	context: function(){ 
+		var context = {
+			result: [[]],
+			last: function(){
+				var current = context.result[context.result.length-1];
+				if(current.length !== 0){
+					return current[current.length-1];
+				}
+			},
+			add: function(assertion){
+				context.result[context.result.length-1].push(assertion);
+			},
+			value: function(){
+				return context.result;
+			}
+		};
+		return context;
+	},
+
+	tokenize: {
+		// All groups used here must be non capturing e.g. (?:...).
+		'[=!<>~]+': {
+			type: 'operator',
+			invalid: function(operator){
+				var allowed = /^((===)|(!==)|(==)|(!==)|<|(<=)|>|(>=))$/;
+				return !allowed.test(operator);
+			}
+		},
+		'[A-Za-z0-9_\\-]+': { type: 'name' },
+		'{{?': { type: '{' },
+		'}}?': { type: '}' },
+		':|#|\\[|\\]|\\.|\\*\\*?': {
+			type: function(simple){ return simple; }
+		},
+		'\\s': {
+			invalid: function(){
+				throw new Error('No whitespace allowed.');
+			}
+		}
+	},
+
+	// BEGIN -> 0
+	// NEXT -> 1
+	// REST -> 2
+	// COLON -> 3
+	// HASH -> 4
+	// ATTRIBUTE -> 6
+	// OPERATOR -> 7
+	// VALUE -> 8
+	// BREAKET -> 9
+	// BREAKET_CLOSE -> 10
+	// END_VALUE -> 11
+
+	states: {
+		// BEGIN -> ** NEXT
+		'0,1,**': function(){
+			this.result[this.result.length-1] = {
+				type: '**'
+			};
+		},
+		// BEGIN -> * REST
+		'0,2,*': function(){ 
+			this.add({
+				type: '_',
+				predicate: function(){return true;}
+			});
+		},
+		// BEGIN -> name REST
+		'0,2,name': function(name){ 
+			this.add({
+				type: '_',
+				value: name,
+				predicate: function(a,b){return a === b;}
+			});
+		},
+		// BEGIN -> : COLON
+		'0,3,:': null,
+		// BEGIN -> # HASH
+		'0,4,#': null,
+		// BEGIN -> [ ATTRIBUTE	
+		'0,6,[': null,
+
+		// REST -> : COLON
+		'2,3,:': null,
+		// REST -> # HASH
+		'2,4,#': null,
+		// REST -> [ ATTRIBUTE
+		'2,6,[': null,
+
+		// REST -> . BEGIN
+		'2,0,.': function(){
+			this.result.push([]);
+		},
+		// NEXT -> . BEGIN
+		'1,0,.': function(){
+			this.result.push([]);
+		},
+
+		// COLON -> name REST
+		'3,2,name': function(name){
+			this.add({
+				type: ':',
+				value: name
+			});
+		},
+		// HASH -> name REST
+		'4,2,name': function(name){
+			this.add({
+				type: '#',
+				value: name,
+				predicate: function(a,b){ return a !== undefined; }
+			});	
+		},
+		// ATTRIBUTE -> name OPERATOR
+		'6,7,name': function(name){
+			var last = this.last();
+			if(!last || last.type !== ':'){
+				this.add(last = {});
+			}
+			last.type = last.value || '[';
+			last.name = name;
+			last.predicate = function(a,b){ return a !== undefined; };
+		},
+		// OPERATOR -> operator VALUE
+		'7,8,operator': function(operator){
+			var predicate;
+			switch (operator) {
+				case '==':
+				case '===':
+					predicate = function(a,b){ return a == b; };
+					break;
+				case '!=':
+				case '!==':
+					predicate = function(a,b){ return a != b; };
+					break;
+				case '<':
+					predicate = function(a,b){ return a < +b; };
+					break;
+				case '<=':
+					predicate = function(a,b){ return a <= +b; };
+					break;
+				case '>':
+					predicate = function(a,b){ return a > +b; };
+					break;
+				case '>=':
+					predicate = function(a,b){ return a >= +b; };
+					break;
+			}
+			this.last().predicate = predicate;
+		},
+
+		// OPERATOR -> ] REST
+		'7,2,]': null,
+		// VALUE -> { BREAKET
+		'8,9,{': null,
+		// BREAKET_CLOSE -> } END_VALUE
+		'10,11,}': null,
+
+		// BREAKET -> name BREAKET_CLOSE
+		'9,10,name': function(name){
+			var last = this.last();
+			last.value  = name;
+			last.lookup = true;
+		},
+		// VALUE -> name END_VALUE
+		'8,11,name': function(name){
+			var last = this.last();
+			last.value = name;
+		},
+		// END_VALUE -> ] REST
+		'11,2,]': null
+	}
+};
+
+function Query(traces, options){
 	this.traces = [];
+	this.option = options || {};
+	for(var i = 0; i < (traces||[]).length; i++){
+		var trace = traces[i];
+		if(typeof trace === 'string'){
+			trace = Query.parser(trace);
+		}
+		if(this.option.isHas){
+			// TODO: check for no _ and no .s
+		}
+		this.traces.push(trace);
+	}
 }
 
-function buildAssertion(type, name, operator, valueName, data){
-	var predicate;
-	switch (operator) {
-		case 'in':
+Query.parser = parser(querylang);
+
+Query.prototype.matchesRoot = function(){
+	return this.traces.length === 0;
+};
+
+Query.prototype.normalizeAssertion = function(assertion, data){
+	var type = assertion.type;
+	var name = assertion.name;
+	var predicate = assertion.predicate;
+	var value = assertion.value;
+
+	// TODO This may need to be configurable 
+	// via this.option.type === 'html' ?
+	switch (type) {
+		case '_':
+			type = 'tags';
+			name = 'name';
+			break;
+		case ':':
+			type = 'attr';
+			name = 'class';
 			predicate = function(a,b){ return a.indexOf(b) !== -1; };
 			break;
-		case '==':
-		case '===':
-			predicate = function(a,b){ return a == b; };
+		case '#':
+			type = 'attr';
+			name = 'id';
 			break;
-		case '!=':
-		case '!==':
-			predicate = function(a,b){ return a != b; };
+		case '[':
+			type = 'attr';
 			break;
-		case '<':
-			predicate = function(a,b){ return a < +b; };
-			break;
-		case '<=':
-			predicate = function(a,b){ return a <= +b; };
-			break;
-		case '>':
-			predicate = function(a,b){ return a > +b; };
-			break;
-		case '>=':
-			predicate = function(a,b){ return a >= +b; };
-			break;
-		case null:
-			predicate = function(a,b){ return a !== undefined; };
-			break;
-		default:
-			throw new Error('Unknown operator '+operator);
 	}
 
-	var value;
-	if(valueName.length === 1 && valueName[0].breakets){
-		value = data(valueName[0].breakets);
-	}else if(!operator){
-		value = null;
-	}else{
-		value = readName(valueName, data);
-	}
+	if(assertion.lookup)value = data.get(value);
 	return new machine.Assertion(type, name, predicate, value);
-}
+};
 
-function readName(name, data){
-	var result = '';
-	for(var i in name){
-		if(name[i].breakets){
-			result += data(name[i].breakets);
-		}else if(name[i].constant){
-			result += name[i].constant;
-		}else if(name[i].wildcard){
-			throw new Error('* not supported here.');
-		}
+Query.prototype.buildStateMachine = function(data){
+	var self = this;
+	function normalizeAssertion(assertion){
+		return self.normalizeAssertion(assertion, data);
 	}
-	return result;
-}
 
-function isWildcard(check, count){
-	if((check[0]||{}).type === '_'){
-		// {type: '_', name: [{wildcard: 2}]}
-		var number = (check[0].name||{}).wildcard;
-		return number === count;
-	}
-	return false;
-}
-
-function buildAssertions(assertions, data){
-	var truthy = [];
-	assertions.map(function(assertion){
-		if(isWildcard(assertion, 1)){
-			truthy.push(machine.Assertion.truthy);
-		}else{
-			var type, name, operator = null, value;
-			switch (assertion.type) {
-				case '_':
-					type = 'tags';
-					name = 'name';
-					operator = '==';
-					value = assertion.name;
-					break;
-				case '#':
-					type = 'attr';
-					name = 'id';
-					operator = '==';
-					value = assertion.name;
-					break;
-				case '[':
-					type = 'prop';
-					name = assertion.prop;
-					if(assertion.assert){
-						operator = assertion.assert;
-						value = assertion.value;
-					}
-					break;
-				case ':':
-					if(assertion.prop){
-						type = assertion.name;
-						name = assertion.prop;
-						if(assertion.assert){
-							operator = assertion.assert;
-							value = assertion.value;
-						}	
-					}else{
-						type = 'attr';
-						name = 'class';
-						operator = 'in';
-						value = assertion.name;
-					}
-					break;
-			}
-			truthy.push(buildAssertion(type, name, operator, value));
-		}
-	});
-	return new machine.DNF(truthy);
-}
-
-Query.buildStateMachine = function(traces, data){
 	var result;
-	traces.map(function(trace){
+	for(var i = 0; i < this.traces.length; i++){
+
 		var states = new machine.States();
-		trace.map(function(state, index){
-			if(state.length === 1 && isWildcard(state,2)){
-				var truthy = machine.Assertion.truthy;
-				states.addTransition(index, index+1, truthy);
-				states.addTransition(index, index, truthy);
-			}else{
-				var assertions = buildAssertions(state);
-				states.addTransition(index, index+1, assertions);
-			}
-		});
+		var trace  = this.traces[i];
 		states.setEndState(trace.length);
-		if(result){
-			result.or(states);
-		}else{
-			result = new machine.DNF([states]);
+
+		for(var j = 0; j < trace.length; j++){
+			var state = trace[j];
+			if(state.type === '**'){
+				var truthy = machine.Assertion.truthy;
+				states.addTransition(j, j, truthy);
+				states.addTransition(j, j+1, truthy);
+			}else{
+				var assertions = new machine.DNF(state.map(normalizeAssertion));
+				states.addTransition(j, j+1, assertions);
+			}
 		}
-	});
+
+		if(result) result.or(states);
+		else result = new machine.DNF([states]);
+	}
 	return result;
 };
 
-Query.prototype.get = function(){
-
+Query.prototype.concat = function(other){
+	if(other.option.isHas){
+		if(this.matchesRoot()){
+			// TODO error 
+		}else{
+			// TODO
+		}
+	}else{
+		if(this.matchesRoot()){
+			this.traces = other.traces;
+		}else{
+			// TODO
+		}
+	}
 };
 
-Query.prototype.has = function(){
-
-};
-
-Query.prototype.from = function(){
-
-};
-
-Query.prototype.each = function(){
-
-};
-
-Query.prototype.live = function(){
-
-};
-
-module.exports = Query;
-});
+module.exports = Query;});
 ;define("src/state", function(require, exports, module){// ** This file describes the state machine that underlies runjs selectors. They
 // are specified in a declarative manner. **
 
@@ -1262,6 +1113,14 @@ function States(states, transitions, endStates){
 	};
 
 	/**
+	 * Tests if there are not more active states.
+	 * @returns {boolean} - true if there are no more active states
+	 */
+	this.isDone = function(){
+		return states.length === 0;
+	};
+
+	/**
 	 * Build a new States object with active states corresponding to transition
 	 * that are resolved with DNF assertions.
 	 * @param {Object} context - the context that is used to transition states
@@ -1312,6 +1171,14 @@ DNF.prototype.transition = function(context){
 		};
 	}
 	return result;
+};
+
+/**
+ * Tests if there are not more active states - this does not work for DNF's
+ * @returns {boolean} - true if there are no more active states
+ */
+DNF.prototype.isDone = function(context){
+	return false;
 };
 
 module.exports.States = States;
