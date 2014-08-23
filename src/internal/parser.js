@@ -17,36 +17,6 @@ function assert(state, type){
 	};
 }
 
-module.exports = function(lang){
-	var tokenize = tokenizer(lang);
-	var states   = new machine.States();
-	for(var i in lang.endStates){
-		states.setEndState(lang.endStates[i]);
-	}
-	for(var j in lang.states){
-		var rule = j.split(',');
-		var assertion = assert(lang.states[j], rule[2]);
-		states.addTransition(rule[0], rule[1], assertion);
-	}
-	return function(input){
-		var tokens  = tokenize(input);
-		var current = states;
-		var context = lang.context();
-		for(var t in tokens){
-			var token = tokens[t];
-			token.context = context;
-			current = current.transition(token);
-			if(current.isDone()){
-				throw new Error('Unexpected token: '+token.token);
-			}
-		}
-		if(!current.resolve()){
-			throw new Error('Unexpected end of input string.');
-		}
-		return context.value();
-	};
-};
-
 function tokenizer(lang){
 	var definition = lang.tokenize;
 	var splitter   = '';
@@ -82,3 +52,33 @@ function tokenizer(lang){
 		return result;
 	};
 }
+
+module.exports = function(lang){
+	var tokenize = tokenizer(lang);
+	var states   = new machine.States();
+	for(var i in lang.endStates){
+		states.setEndState(lang.endStates[i]);
+	}
+	for(var j in lang.states){
+		var rule = j.split(',');
+		var assertion = assert(lang.states[j], rule[2]);
+		states.addTransition(rule[0], rule[1], assertion);
+	}
+	return function(input){
+		var tokens  = tokenize(input);
+		var current = states;
+		var context = lang.context();
+		for(var t in tokens){
+			var token = tokens[t];
+			token.context = context;
+			current = current.transition(token);
+			if(current.isDone()){
+				throw new Error('Unexpected token: '+token.token);
+			}
+		}
+		if(!current.resolve()){
+			throw new Error('Unexpected end of input string.');
+		}
+		return context.value();
+	};
+};

@@ -1,5 +1,5 @@
-var Stream = require('./stream');
-var Node   = require('./node');
+var Stream = require('../internal/stream');
+var Node   = require('../internal/node');
 
 /**
  * Call cb for every property in the object.
@@ -121,34 +121,35 @@ function toJS(context, done){
 
 
 
-module.exports = function(get){
+module.exports = {
+	"static": {
 
-	/**
-	 * Static method to build a getjs root node from js objec.
-	 */
-	get.read = function(data, options){
-		if(!options)options = {};
-		var type = options.type ? options.type.toLowerCase() : '';
+		/**
+		 * Static method to build a getjs root node from js objec.
+		 */
+		read: function(data, options){
+			if(!options)options = {};
+			var type = options.type ? options.type.toLowerCase() : '';
 
-		if(!type || type === 'js'){
-			var root = makeNode(data, !!options.flatten);
-			if(!root){
-				throw new Error('Expected toplevel array or object.');
+			if(!type || type === 'js'){
+				var root = makeNode(data, !!options.flatten);
+				if(!root){
+					throw new Error('Expected toplevel array or object.');
+				}
+				return new Node.Root(root);
 			}
-			return new Node.Root(root);
-		}
-	};
+		},
 
-	/**
-	 * Build js object from getjs root node.
-	 */
-	get.toJS = function(root, done){
-		root.execute(function(context){
-			toJS(context, function(result){
-				done(result);
+		/**
+		 * Build js object from getjs root node.
+		 */
+		toJS: function(root, done){
+			root.execute(function(context){
+				toJS(context, function(result){
+					done(result);
+				});
 			});
-		});
-	};
-
+		}
+	}
 };
 

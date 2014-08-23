@@ -206,7 +206,7 @@ function Query(traces, options){
 			trace = Query.parser(trace);
 		}
 		if(this.option.isHas){
-			// TODO: check for no _ and no .s
+			// TODO: check for no _ and no .'s
 		}
 		this.traces.push(trace);
 	}

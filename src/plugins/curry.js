@@ -109,12 +109,11 @@ function curry(func){
   };
 }
 
+// Export the curry function.
+
 module.exports = {
   "static": {
     curry: curry
-  }, 
-  "query" : {
-    
   }
 };
 
