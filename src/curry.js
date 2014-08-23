@@ -51,6 +51,8 @@ underscore[reservedKey] = isUnderscore;
 
 /**
  * This transforms a function into a curry-able function.
+ * @param {function} func - the function that is curried
+ * @returns {function}    - the result
  */
 function curry(func){
 
@@ -107,5 +109,12 @@ function curry(func){
   };
 }
 
-module.exports = curry;
+module.exports = {
+  "static": {
+    curry: curry
+  }, 
+  "query" : {
+    
+  }
+};
 
