@@ -44,19 +44,16 @@ DNF.prototype.or = function(target){
 /**
  * Construct an assertion
  * @constructor
- * @param {string}   type           - one of 'attr', 'prop', 'tags' and 'meta'
- * @param {string}   name           - the key of the property to be tested
- * @param {function(?,?)} predicate - evaluate property and return a boolean
- * @param {?}        value          - the reference value to be tested against
+ * @param {function(?)} predicate - evaluate property and return a boolean
  */
-function Assertion(type, name, predicate, value){
+function Assertion(predicate){
 	/**
  	 * Test a node against assertion
  	 * @param {Object} context - this is the context that is asserted
  	 * @returns {boolean}      - true only when the assertion is true
  	 */
 	this.resolve = function(context){
-		return predicate(value, context.get(type, name));
+		return predicate(context);
 	};
 }
 
@@ -134,6 +131,13 @@ function States(states, transitions, endStates){
 	this.setEndState = function(state){
 		endStates[state] = true;
 	};
+
+	/**
+	 * Add an index to the array of active states.
+	 */
+	this.addActiveState = function(index){
+		states.push(index);
+	}
 
 	/**
  	 * Test if the active states contains end states.

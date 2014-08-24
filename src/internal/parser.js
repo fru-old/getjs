@@ -8,13 +8,11 @@ function run(value, parameter, context){
 }
 
 function assert(state, type){
-	return {
-		resolve: function(token){
-			if(token.type !== type)return false;
-			run(state, token.token, token.context);
-			return true;
-		}
-	};
+	return new machine.Assertion(function(token){
+		if(token.type !== type)return false;
+		run(state, token.token, token.context);
+		return true;
+	});
 }
 
 function tokenizer(lang){

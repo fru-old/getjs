@@ -107,6 +107,7 @@ Node.prototype.resolveClone = function(){
  * Run operation (can be used on non-root nodes).
  */
 Node.prototype.execute = function(operation, timestamp, done){
+	if(!timestamp)timestamp = ID.ascending();
 	var counter = new Node.DoneCounter(done);
 	counter.start();
 	if(this.timestamp < timestamp){

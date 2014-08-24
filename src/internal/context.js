@@ -8,10 +8,11 @@ function expired(){
 
 
 // get (problem when id is generated it needs to be cloned)
-// find (must return context)
-// next (must return context)
-// iterate (add operation to pending)
+// childrenFind (must return context)
+// childrenNext (must return context)
+// childrenRun (add operation to pending)
 // internal
+// hidding doesnt use timestamps and hence it is implemented here
 
 
 // pending persistant 

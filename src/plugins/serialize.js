@@ -117,7 +117,33 @@ function toJS(context, done){
 	});
 }
 
+function buildHtml(object){
+	var result   = new Node.DefaultData();
+	var children = [];
 
+	// TODO
+
+	for(var i in object){
+		switch(i){
+			case 'id':
+
+				break;
+			case 'class':
+
+				break;
+			case 'attr':
+
+				break;
+			case 'child':
+
+				break;
+			default:
+				return null;
+		}
+	}
+
+	return new Node(result, new Stream.Array(children));
+}
 
 
 
@@ -129,15 +155,23 @@ module.exports = {
 		 */
 		read: function(data, options){
 			if(!options)options = {};
-			var type = options.type ? options.type.toLowerCase() : '';
 
-			if(!type || type === 'js'){
-				var root = makeNode(data, !!options.flatten);
-				if(!root){
-					throw new Error('Expected toplevel array or object.');
-				}
-				return new Node.Root(root);
+			var root = makeNode(data, !!options.flatten);
+			if(!root){
+				throw new Error('Expected toplevel array or object.');
 			}
+			return new Node.Root(root);
+		},
+
+		/**
+		 * Static method to build html tree from js object
+		 */
+		html: function(data){
+			var result = buildHtml(data);
+			if(!result){
+				throw new Error('Could not find root node.');
+			}
+			return result;
 		},
 
 		/**
