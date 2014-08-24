@@ -25,7 +25,7 @@ module.exports = function(grunt) {
 	grunt.initConfig({
 		concat: {
 			dist: {
-				src: ['src/require.js', '!src/index.js', 'src/*.js', 'src/index.js'],
+				src: ['src/require.js', '!src/index.js', 'src/**/*.js', 'src/index.js'],
 				dest: 'dist/get.js',
 				options: {
 					process: function(src, path){
@@ -59,12 +59,12 @@ module.exports = function(grunt) {
 			options: {
 				force: true
 			},
-			all: ['src/*.js']
+			all: ['src/**/*.js']
 		},
 
 		watch: {
 			scripts: {
-				files: ['src/*.js', 'test/**/*'],
+				files: ['src/**/*.js', 'test/**/*'],
 				tasks: ['build'],
 				options: {
 					spawn: false,

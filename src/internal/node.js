@@ -51,6 +51,14 @@ Node.DefaultData = function(){
 	this.mark = new Node.KeyValue();
 };
 
+Node.DefaultData.prototype.clone = function(){
+	var data = new Node.DefaultData();
+	for(var i in this){
+		data[i] = this[i].clone();
+	}
+	return data;
+};
+
 /**
  * Counts when the done callback should be invoked.
  */
@@ -93,12 +101,7 @@ Node.prototype.scheduleClone = function(root){
 
 Node.prototype.resolveClone = function(){
 	if(this.cloned){
-		var data = {};
-
-		for(var i in this.nodedata){
-			data[i] = this.nodedata[i].clone();
-		}
-		this.nodedata = data;
+		this.nodedata = this.nodedata.clone();
 		this.cloned   = false;
 	}
 };

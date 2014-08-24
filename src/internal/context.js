@@ -19,9 +19,6 @@ function expired(){
 // (may be 2. result of operation)
 // (is then executed always before everythig else)
 // (persist has a minimal timestamp)
-// options.isHas .? remove
-// query concat implement
-// tree type may influences query
 // interceptor has to be on node not on context
 // event context can not trigger secondary events 
 // get.symbol -> tags.id created on read

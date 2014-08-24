@@ -22,8 +22,8 @@ get.plugin = function(object){
  * Executed after every module has been defined
  */
 function afterDefine(){
-	get.plugin(get.require('./plugins/serialize.js'));
-	get.plugin(get.require('./plugins/curry.js'));
+	get.plugin(get.require('src/plugins/serialize'));
+	get.plugin(get.require('src/plugins/curry'));
 }
 
 // Make get globally available

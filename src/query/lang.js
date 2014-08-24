@@ -166,6 +166,7 @@ module.exports = {
 					predicate = function(a,b){ return a >= +b; };
 					break;
 			}
+			this.last().operator  = operator;
 			this.last().predicate = predicate;
 		},
 

@@ -1,6 +1,7 @@
 var parser  = require('../internal/parser');
 var machine = require('../internal/state');
 var lang    = require('./lang');
+var Node    = require('../internal/node');
 
 function Query(traces, isHas){
 	this.traces = [];
@@ -141,7 +142,55 @@ Query.prototype.concat = function(other){
 };
 
 Query.create = function(query){
-	// TODO
+	 var result = new Node.DefaultData();
+	 query = Query.parser(query);
+	 
+	 if(query.length !== 1 || query[0].type === '**'){
+	 	throw new Error('Can not use . or ** in html literal.');
+	 }
+
+	 var classes = [];
+
+	 for(var i = 0; i < query[0].length; i++){
+	 	var assertion = query[0][i];
+
+	 	if(assertion.lookup){
+	 		throw new Error('Cant use template {{...}} in html literal.');
+	 	}
+
+	 	var op = assertion.operator;
+	 	if(op && op !== '==' && op !== '==='){
+	 		throw new Error('Can not use operator '+op+' in html literal.');
+	 	}
+
+	 	var type  = assertion.type;
+		var name  = assertion.name;
+		var value = assertion.value;
+
+		if(type === ':'){
+			classes.push(value);
+			continue;
+		}
+
+		switch (type) {
+			case '_': 
+				type = 'tags';
+				name = 'name';
+				break;
+			case '[':
+				type = 'attr';
+				break;
+			case '#':
+				type = 'attr';
+				name = 'id';
+				break;
+		}
+		result.set(type, name, value);
+	}
+	if(classes.length > 0){
+		result.set('attr', 'class', classes);
+	}
+	return result;
 };
 
 module.exports = Query;

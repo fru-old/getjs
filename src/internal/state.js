@@ -137,7 +137,7 @@ function States(states, transitions, endStates){
 	 */
 	this.addActiveState = function(index){
 		states.push(index);
-	}
+	};
 
 	/**
  	 * Test if the active states contains end states.
