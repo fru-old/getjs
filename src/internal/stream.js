@@ -27,6 +27,13 @@ Stream.prototype.next = function(minindex, assertions, done){
 };
 
 /**
+ *
+ */
+Stream.prototype.undo = function(){
+	return false;
+};
+
+/**
  * Stream constructed from array.
  * @constructor
  */
@@ -77,13 +84,26 @@ Offset.prototype.next = function(minindex, assertions, done){
  * Stream.Mapper instance.
  * @constructor
  */
-function Mapper(original, mapper){
+function Mapper(original, mapper, context){
+	var hasRun = false;
 	this.next = function(minindex, assertions, done){
+		hasRun = true;
 		function result(err, i, element, ended){
-			if(element)mapper(element);
+			if(element)mapper(element, context);
 			done(err, i, element, ended);
 		}
 		this.original.next(minindex, assertions, result);
+	};
+
+	/**
+	 * Special function that can be used to cheaply undo a node mapping.
+	 */
+	this.undo = function(matchMapper, matchContext){
+		if(!hasRun && mapper === matchMapper && context === matchContext){
+			return original;
+		}else{
+			return false;
+		}
 	};
 }
 
@@ -155,6 +175,9 @@ var infity = Number.POSITIVE_INFINITY;
  *
  */
 Stream.prototype.append = function(nodes){
+	if(nodes.appendTo){
+		return nodes.appendTo(this);
+	}
 	if(!(nodes instanceof Stream)){
 		nodes = new Stream.Array(nodes);
 	}
@@ -172,6 +195,9 @@ Stream.prototype.map = function(mapper){
  *
  */
 Stream.prototype.prepend = function(index, nodes){
+	if(nodes.prependTo){
+		return nodes.prependTo(index, this);
+	}
 	if(!(nodes instanceof Stream)){
 		nodes = new Stream.Array(nodes);
 	}

@@ -21,13 +21,19 @@ function Node(nodedata, children, isRoot){
 	// Still need to run on children {timestamp, operation}
 	this.pending   = [];
 	this.detached  = isRoot || false;
-	this.creation  = ID.ascending();
+	this.nodedata.tags.set('creation', ID.ascending(), true);
 }
 
 
 Node.KeyValue = function(initial){
-	var values = initial || {};
-	this.set = function(key, value){
+	var values   = initial || {};
+	var readonly = {};
+	this.set = function(key, value, isReadonly){
+		if(readonly[key]){
+			return values[key];
+		}else if(isReadonly){
+			readonly[key] = true;
+		}
 		return (values[key] = value);
 	};
 	this.get = function(key){

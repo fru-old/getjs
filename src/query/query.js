@@ -94,7 +94,7 @@ function buildTransition(states, state, j){
 	}else{
 		var assertions = new machine.DNF(state);
 		states.addTransition(j, j+1, assertions);
-		if((trace[j+1]||{}).type === '**'){
+		if(trace[j+1].type === '**'){
 			states.addTransition(j, j+2, assertions);
 		}
 	}
@@ -130,10 +130,13 @@ Query.prototype.concat = function(other){
 
 	if(other.isHas){
 		if(self.matchesRoot()){
-			throw new Error("Use get() before has()");
+			throw new Error('Use get() before has().');
 		}else{
 			var trace = other.traces[0];
 			var last  = self.traces.length-1;
+			if(self.traces[last].type === '**'){
+				throw new Error('Can not use .has with **.');
+			}
 			self.traces[last] = self.traces[last].concat(trace);
 		}
 	}else{
